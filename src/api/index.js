@@ -14,6 +14,7 @@ export const productosApi = {
   editar:          (id, datos)     => api.put(`/productos/${id}`,              datos),
   toggle:          (id, activo)    => api.patch(`/productos/${id}/toggle-activo`,    { activo }),
   buscarCodigo:    (codigo)        => api.get(`/productos/codigo/${codigo}`),
+  subirImagen:     (formData)      => api.post('/productos/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   // Variantes
   crearVariante:   (id, datos)     => api.post(`/productos/${id}/variantes`,   datos),
   editarVariante:  (id, vid, d)    => api.put(`/productos/${id}/variantes/${vid}`, d),

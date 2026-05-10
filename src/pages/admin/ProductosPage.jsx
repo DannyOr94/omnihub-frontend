@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z }           from 'zod'
 import { toast }       from 'sonner'
 import {
-  Plus, Search, Package, Edit2,
+  Plus, Search, Package, Edit2, UploadCloud,
   ToggleLeft, ToggleRight, ChevronDown, ChevronUp, X,
 } from 'lucide-react'
 import { productosApi, categoriasApi } from '../../api/index'
@@ -15,7 +15,7 @@ import { Badge }    from '../../components/ui/badge'
 import { Textarea } from '../../components/ui/textarea'
 import {
   Dialog, DialogContent, DialogHeader,
-  DialogTitle, DialogFooter,
+  DialogTitle, DialogFooter, DialogDescription,
 } from '../../components/ui/dialog'
 import {
   Select, SelectContent, SelectItem,
@@ -37,6 +37,7 @@ const prodSchema = z.object({
   stockMinimo:  z.coerce.number().int().min(0).default(0),
   precioVenta:  z.coerce.number().min(0).default(0),
   precioCompra: z.coerce.number().min(0).optional(),
+  stockInicial: z.coerce.number().int().min(0).optional(),
   visiblePublico: z.boolean().default(true),
 })
 
@@ -47,6 +48,7 @@ const varianteSchema = z.object({
   codigoBarras: z.string().max(100).optional(),
   precioVenta:  z.coerce.number().min(0,'Precio requerido'),
   precioCompra: z.coerce.number().min(0).optional(),
+  stockInicial: z.coerce.number().int().min(0).optional(),
 })
 
 const TIPOS = ['TEXTIL','TECNOLOGIA','REPUESTO','SERVICIO']
@@ -87,8 +89,13 @@ export default function ProductosPage() {
   const [editandoVar,  setEditandoVar]  = useState(null)
   const [enviando,     setEnviando]     = useState(false)
 
-  const formProd = useForm({ resolver: zodResolver(prodSchema), defaultValues: { usaVariantes: false, manejaStock: true, stockMinimo: 0, precioVenta: 0, visiblePublico: true } })
-  const formVar  = useForm({ resolver: zodResolver(varianteSchema) })
+  const [imagenProd, setImagenProd] = useState(null)
+  const [previewProd, setPreviewProd] = useState(null)
+  const [imagenVar, setImagenVar] = useState(null)
+  const [previewVar, setPreviewVar] = useState(null)
+
+  const formProd = useForm({ resolver: zodResolver(prodSchema), defaultValues: { usaVariantes: false, manejaStock: true, stockMinimo: 0, stockInicial: 0, precioVenta: 0, visiblePublico: true } })
+  const formVar  = useForm({ resolver: zodResolver(varianteSchema), defaultValues: { stockInicial: 0 } })
 
   // ─── Cargar categorías ────────────────────────────────────────────────────
   useEffect(() => {
@@ -129,12 +136,14 @@ export default function ProductosPage() {
   // ─── Crear / Editar producto ──────────────────────────────────────────────
   function abrirCrear() {
     setEditandoProd(null)
-    formProd.reset({ nombre:'', descripcion:'', tipoProducto:'TECNOLOGIA', categoriaId:'', marca:'', skuBase:'', codigoBarras:'', usaVariantes:false, manejaStock:true, stockMinimo:0, precioVenta:0, precioCompra:'', visiblePublico:true })
+    setImagenProd(null); setPreviewProd(null);
+    formProd.reset({ nombre:'', descripcion:'', tipoProducto:'TECNOLOGIA', categoriaId:'', marca:'', skuBase:'', codigoBarras:'', usaVariantes:false, manejaStock:true, stockMinimo:0, stockInicial:0, precioVenta:0, precioCompra:'', visiblePublico:true })
     setModalProd(true)
   }
 
   function abrirEditar(p) {
     setEditandoProd(p)
+    setImagenProd(null); setPreviewProd(p.imagenUrl ? `http://localhost:3000${p.imagenUrl}` : null);
     formProd.reset({
       nombre: p.nombre, descripcion: p.descripcion ?? '', tipoProducto: p.tipoProducto,
       categoriaId: p.categoriaId, marca: p.marca ?? '', skuBase: p.skuBase ?? '',
@@ -149,6 +158,13 @@ export default function ProductosPage() {
     const payload = Object.fromEntries(Object.entries(datos).map(([k,v]) => [k, v === '' ? null : v]))
     setEnviando(true)
     try {
+      if (imagenProd) {
+        const fd = new FormData()
+        fd.append('imagen', imagenProd)
+        const resImg = await productosApi.subirImagen(fd)
+        payload.imagenUrl = resImg.data.data.url
+      }
+
       if (editandoProd) {
         await productosApi.editar(editandoProd.id, payload)
         toast.success('Producto actualizado')
@@ -176,12 +192,14 @@ export default function ProductosPage() {
   // ─── Variantes ────────────────────────────────────────────────────────────
   function abrirCrearVariante() {
     setEditandoVar(null)
-    formVar.reset({ talla:'', color:'', sku:'', codigoBarras:'', precioVenta:0, precioCompra:'' })
+    setImagenVar(null); setPreviewVar(null);
+    formVar.reset({ talla:'', color:'', sku:'', codigoBarras:'', precioVenta:0, precioCompra:'', stockInicial:0 })
     setModalVariante(true)
   }
 
   function abrirEditarVariante(v) {
     setEditandoVar(v)
+    setImagenVar(null); setPreviewVar(v.imagenUrl ? `http://localhost:3000${v.imagenUrl}` : null);
     formVar.reset({ talla: v.talla ?? '', color: v.color ?? '', sku: v.sku,
       codigoBarras: v.codigoBarras ?? '', precioVenta: Number(v.precioVenta),
       precioCompra: v.precioCompra ? Number(v.precioCompra) : '' })
@@ -192,6 +210,13 @@ export default function ProductosPage() {
     const payload = Object.fromEntries(Object.entries(datos).map(([k,v]) => [k, v === '' ? null : v]))
     setEnviando(true)
     try {
+      if (imagenVar) {
+        const fd = new FormData()
+        fd.append('imagen', imagenVar)
+        const resImg = await productosApi.subirImagen(fd)
+        payload.imagenUrl = resImg.data.data.url
+      }
+
       if (editandoVar) {
         await productosApi.editarVariante(seleccion.id, editandoVar.id, payload)
         toast.success('Variante actualizada')
@@ -249,18 +274,27 @@ export default function ProductosPage() {
               : productos.map(p=>(
                 <button key={p.id} onClick={()=>verDetalle(p.id)}
                   className={`w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors ${seleccion?.id===p.id?'bg-blue-50 border-l-2 border-blue-500':''} ${!p.activo?'opacity-50':''}`}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-800 truncate">{p.nombre}</p>
+                  <div className="flex items-start gap-3">
+                    {p.imagenUrl ? (
+                      <img src={`http://localhost:3000${p.imagenUrl}`} className="w-10 h-10 object-cover rounded-md border shrink-0" alt="" />
+                    ) : (
+                      <div className="w-10 h-10 bg-slate-100 rounded-md border flex items-center justify-center text-slate-400 shrink-0">
+                        <Package size={16}/>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium text-slate-800 truncate">{p.nombre}</p>
+                        <span className="text-xs font-semibold text-slate-600 shrink-0">{formatCurrency(p.precioVenta)}</span>
+                      </div>
                       <p className="text-xs text-slate-400">{ETIQ_TIPO[p.tipoProducto]} · {p.categoria?.nombre}</p>
+                      {p.manejaStock && !p.usaVariantes && (
+                        <p className={`text-xs mt-0.5 ${p.stockActual-p.stockReservado<=p.stockMinimo?'text-red-500':'text-slate-400'}`}>
+                          Stock: {p.stockActual-p.stockReservado} libre
+                        </p>
+                      )}
                     </div>
-                    <span className="text-xs font-semibold text-slate-600 shrink-0">{formatCurrency(p.precioVenta)}</span>
                   </div>
-                  {p.manejaStock && !p.usaVariantes && (
-                    <p className={`text-xs mt-0.5 ${p.stockActual-p.stockReservado<=p.stockMinimo?'text-red-500':'text-slate-400'}`}>
-                      Stock: {p.stockActual-p.stockReservado} libre
-                    </p>
-                  )}
                 </button>
               ))
           }
@@ -277,19 +311,30 @@ export default function ProductosPage() {
           <div className="space-y-4">
             {/* Header */}
             <div className="bg-white rounded-xl border p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <span className="text-xs text-slate-400">{ETIQ_TIPO[seleccion.tipoProducto]} · {seleccion.categoria?.nombre}</span>
-                  <h2 className="text-lg font-bold text-slate-800 mt-0.5">{seleccion.nombre}</h2>
-                  {seleccion.marca && <p className="text-sm text-slate-500">{seleccion.marca}</p>}
+              <div className="flex items-start gap-4">
+                {seleccion.imagenUrl ? (
+                  <img src={`http://localhost:3000${seleccion.imagenUrl}`} className="w-16 h-16 object-cover rounded-xl border shrink-0" alt="" />
+                ) : (
+                  <div className="w-16 h-16 bg-slate-100 rounded-xl border flex items-center justify-center text-slate-400 shrink-0">
+                    <Package size={24}/>
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="text-xs text-slate-400">{ETIQ_TIPO[seleccion.tipoProducto]} · {seleccion.categoria?.nombre}</span>
+                      <h2 className="text-lg font-bold text-slate-800 mt-0.5">{seleccion.nombre}</h2>
+                      {seleccion.marca && <p className="text-sm text-slate-500">{seleccion.marca}</p>}
+                    </div>
+                    <Badge variant={seleccion.activo?'default':'secondary'}>{seleccion.activo?'Activo':'Inactivo'}</Badge>
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    <Button size="sm" variant="outline" onClick={()=>abrirEditar(seleccion)}><Edit2 size={13} className="mr-1"/>Editar</Button>
+                    <Button size="sm" variant={seleccion.activo?'destructive':'outline'} onClick={()=>toggleProducto(seleccion)}>
+                      {seleccion.activo?<><ToggleLeft size={13} className="mr-1"/>Desactivar</>:<><ToggleRight size={13} className="mr-1"/>Activar</>}
+                    </Button>
+                  </div>
                 </div>
-                <Badge variant={seleccion.activo?'default':'secondary'}>{seleccion.activo?'Activo':'Inactivo'}</Badge>
-              </div>
-              <div className="flex gap-2 mt-4">
-                <Button size="sm" variant="outline" onClick={()=>abrirEditar(seleccion)}><Edit2 size={13} className="mr-1"/>Editar</Button>
-                <Button size="sm" variant={seleccion.activo?'destructive':'outline'} onClick={()=>toggleProducto(seleccion)}>
-                  {seleccion.activo?<><ToggleLeft size={13} className="mr-1"/>Desactivar</>:<><ToggleRight size={13} className="mr-1"/>Activar</>}
-                </Button>
               </div>
             </div>
 
@@ -310,24 +355,36 @@ export default function ProductosPage() {
             {/* Variantes */}
             {seleccion.usaVariantes && (
               <div className="bg-white rounded-xl border overflow-hidden">
-                <button onClick={()=>setExpandVariantes(v=>!v)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                <div role="button" tabIndex={0} onClick={()=>setExpandVariantes(v=>!v)}
+                  onKeyDown={e => e.key === 'Enter' && setExpandVariantes(v=>!v)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">
                   <span>Variantes ({seleccion.variantes?.length ?? 0})</span>
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={e=>{e.stopPropagation();abrirCrearVariante()}}
-                      className="text-xs text-blue-600 hover:underline flex items-center gap-1"><Plus size={12}/>Agregar</button>
+                    <Button type="button" size="sm" variant="ghost" onClick={e=>{e.stopPropagation();abrirCrearVariante()}}
+                      className="h-7 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 flex items-center gap-1">
+                      <Plus size={12}/>Agregar
+                    </Button>
                     {expandVariantes ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
                   </div>
-                </button>
+                </div>
                 {expandVariantes && (
                   <div className="divide-y divide-slate-100">
                     {(seleccion.variantes ?? []).map(v => (
                       <div key={v.id} className={`flex items-center justify-between px-4 py-3 text-sm ${!v.activo?'opacity-50':''}`}>
-                        <div>
-                          <p className="font-medium text-slate-800">
-                            {v.talla && `T.${v.talla}`}{v.talla&&v.color&&' · '}{v.color}
-                          </p>
-                          <p className="text-xs text-slate-400">SKU: {v.sku} · Stock: {v.stockActual-v.stockReservado} libre</p>
+                        <div className="flex items-center gap-3">
+                          {v.imagenUrl ? (
+                            <img src={`http://localhost:3000${v.imagenUrl}`} alt={v.sku} className="w-10 h-10 object-cover rounded-md border" />
+                          ) : (
+                            <div className="w-10 h-10 bg-slate-100 rounded-md border flex items-center justify-center text-slate-400">
+                              <Package size={16}/>
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-medium text-slate-800">
+                              {v.talla && `T.${v.talla}`}{v.talla&&v.color&&' · '}{v.color}
+                            </p>
+                            <p className="text-xs text-slate-400">SKU: {v.sku} · Stock: {v.stockActual-v.stockReservado} libre</p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="font-semibold">{formatCurrency(v.precioVenta)}</span>
@@ -352,14 +409,40 @@ export default function ProductosPage() {
         )}
       </div>
 
-      {/* MODAL — Crear/Editar producto */}
       <Dialog open={modalProd} onOpenChange={setModalProd}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editandoProd?'Editar producto':'Nuevo producto'}</DialogTitle></DialogHeader>
+        <DialogContent aria-describedby={undefined} className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editandoProd?'Editar producto':'Nuevo producto'}</DialogTitle>
+            <DialogDescription className="sr-only">Formulario para gestionar productos</DialogDescription>
+          </DialogHeader>
           <form onSubmit={formProd.handleSubmit(onGuardarProd)} className="space-y-4 pt-1">
-            <Campo label="Nombre" required error={formProd.formState.errors.nombre?.message}>
-              <Input {...formProd.register('nombre')}/>
-            </Campo>
+            
+            <div className="flex items-start gap-4">
+              <label className="shrink-0 group cursor-pointer border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl w-24 h-24 flex flex-col items-center justify-center relative overflow-hidden bg-slate-50 transition-colors">
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" 
+                  onChange={e => {
+                    if (e.target.files[0]) {
+                      setImagenProd(e.target.files[0])
+                      setPreviewProd(URL.createObjectURL(e.target.files[0]))
+                    }
+                  }} />
+                {previewProd ? (
+                  <img src={previewProd} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <UploadCloud size={20} className="text-slate-400 group-hover:text-blue-500 mb-1" />
+                    <span className="text-[10px] font-medium text-slate-500">Subir foto</span>
+                  </>
+                )}
+              </label>
+
+              <div className="flex-1 space-y-3">
+                <Campo label="Nombre" required error={formProd.formState.errors.nombre?.message}>
+                  <Input {...formProd.register('nombre')}/>
+                </Campo>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <Campo label="Tipo" required error={formProd.formState.errors.tipoProducto?.message}>
                 <Select value={tipoSelec} onValueChange={v=>formProd.setValue('tipoProducto',v)} disabled={!!editandoProd}>
@@ -392,9 +475,16 @@ export default function ProductosPage() {
               <CheckField label="Visible en portal público" checked={formProd.watch('visiblePublico')} onChange={v=>formProd.setValue('visiblePublico',v)}/>
             </div>
             {manejaStock && !usaVariantes && (
-              <Campo label="Stock mínimo" error={formProd.formState.errors.stockMinimo?.message}>
-                <Input type="number" min="0" {...formProd.register('stockMinimo')}/>
-              </Campo>
+              <div className="grid grid-cols-2 gap-3">
+                <Campo label="Stock mínimo" error={formProd.formState.errors.stockMinimo?.message}>
+                  <Input type="number" min="0" {...formProd.register('stockMinimo')}/>
+                </Campo>
+                {!editandoProd && (
+                  <Campo label="Stock inicial" error={formProd.formState.errors.stockInicial?.message}>
+                    <Input type="number" min="0" {...formProd.register('stockInicial')}/>
+                  </Campo>
+                )}
+              </div>
             )}
             <Campo label="Descripción"><Textarea rows={2} {...formProd.register('descripcion')}/></Campo>
             <DialogFooter>
@@ -407,9 +497,33 @@ export default function ProductosPage() {
 
       {/* MODAL — Crear/Editar variante */}
       <Dialog open={modalVariante} onOpenChange={setModalVariante}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>{editandoVar?'Editar variante':'Nueva variante'}</DialogTitle></DialogHeader>
+        <DialogContent aria-describedby={undefined} className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editandoVar?'Editar variante':'Nueva variante'}</DialogTitle>
+            <DialogDescription className="sr-only">Formulario para gestionar variantes de producto</DialogDescription>
+          </DialogHeader>
           <form onSubmit={formVar.handleSubmit(onGuardarVariante)} className="space-y-4 pt-1">
+            
+            <div className="flex justify-center mb-2">
+              <label className="shrink-0 group cursor-pointer border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl w-24 h-24 flex flex-col items-center justify-center relative overflow-hidden bg-slate-50 transition-colors">
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" 
+                  onChange={e => {
+                    if (e.target.files[0]) {
+                      setImagenVar(e.target.files[0])
+                      setPreviewVar(URL.createObjectURL(e.target.files[0]))
+                    }
+                  }} />
+                {previewVar ? (
+                  <img src={previewVar} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <UploadCloud size={20} className="text-slate-400 group-hover:text-blue-500 mb-1" />
+                    <span className="text-[10px] font-medium text-slate-500">Subir foto</span>
+                  </>
+                )}
+              </label>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <Campo label="Talla"><Input {...formVar.register('talla')}/></Campo>
               <Campo label="Color"><Input {...formVar.register('color')}/></Campo>
@@ -425,6 +539,11 @@ export default function ProductosPage() {
                 <Input type="number" min="0" step="50" {...formVar.register('precioCompra')}/>
               </Campo>
             </div>
+            {!editandoVar && (
+              <Campo label="Stock inicial" error={formVar.formState.errors.stockInicial?.message}>
+                <Input type="number" min="0" {...formVar.register('stockInicial')}/>
+              </Campo>
+            )}
             <DialogFooter>
               <Button variant="outline" type="button" onClick={()=>setModalVariante(false)}>Cancelar</Button>
               <Button type="submit" disabled={enviando}>{enviando?'Guardando…':editandoVar?'Guardar':'Crear variante'}</Button>

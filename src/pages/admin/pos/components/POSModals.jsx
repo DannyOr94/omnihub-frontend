@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { X, UserPlus, AlertTriangle, Printer, Clock, PlayCircle, ShoppingCart } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../../../components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../../../../components/ui/dialog'
 import { Input } from '../../../../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select'
 import { Button } from '../../../../components/ui/button'
 import { formatCurrency } from '../../../../utils'
-import { clientesApi } from '../../../../api/index'
-
+import { clientesApi, productosApi } from '../../../../api/index'
 const METODOS_PAGO = [
   { value: 'EFECTIVO',      label: 'Efectivo' },
   { value: 'SINPE',         label: 'SINPE Móvil' },
@@ -114,12 +113,11 @@ function VariantesSelector({ producto, onSeleccionar }) {
 
   useEffect(() => {
     if (!producto) return
-    import('../../../../api/index').then(({ productosApi: api }) => {
-      api.obtener(producto.id)
-        .then(res => setVariantes(res.data.data?.variantes ?? []))
-        .catch(() => setVariantes([]))
-        .finally(() => setCargando(false))
-    })
+    setCargando(true)
+    productosApi.obtener(producto.id)
+      .then(res => setVariantes(res.data.data?.variantes ?? []))
+      .catch(() => setVariantes([]))
+      .finally(() => setCargando(false))
   }, [producto])
 
   if (cargando) return (
@@ -127,20 +125,37 @@ function VariantesSelector({ producto, onSeleccionar }) {
       <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
     </div>
   )
-  if (variantes.length === 0) return <p className="text-sm text-slate-400 py-4 text-center">Sin variantes disponibles</p>
+  if (variantes.length === 0) return (
+    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+        <AlertTriangle className="text-amber-500" size={32} />
+      </div>
+      <p className="text-base font-bold text-slate-800 mb-1">Sin variantes disponibles</p>
+      <p className="text-sm text-slate-500 max-w-[250px]">Este producto requiere variantes para ser vendido, pero no tiene ninguna configurada.</p>
+    </div>
+  )
 
   return (
-    <div className="grid grid-cols-2 gap-3 pt-2 max-h-80 overflow-y-auto p-1">
+    <div className="grid grid-cols-2 gap-3 pt-2 max-h-80 overflow-y-auto p-1 custom-scrollbar">
       {variantes.filter(v => v.activo).map(v => {
         const libre = v.stockActual - v.stockReservado
         return (
-          <button key={v.id} onClick={() => onSeleccionar(v)} disabled={libre <= 0}
-            className="border border-slate-200 rounded-xl p-4 text-left hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md group">
-            <p className="text-sm font-bold text-slate-800 group-hover:text-blue-800">
-              {v.talla && `Talla ${v.talla}`}{v.talla && v.color && ' · '}{v.color}
-            </p>
-            <p className="text-sm text-slate-600 mt-1 font-medium">{formatCurrency(v.precioVenta)}</p>
-            <p className={`text-xs mt-2 font-semibold px-2 py-1 rounded inline-block ${libre <= 0 ? 'bg-red-100 text-red-700' : libre <= 3 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+          <button key={v.id} onClick={() => onSeleccionar(v)}
+            className="flex flex-col items-start border border-slate-200 rounded-xl p-4 text-left hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md group relative overflow-hidden">
+            
+            <div className="flex w-full justify-between items-start mb-2">
+              <div className="flex-1">
+                <p className="text-sm font-bold text-slate-800 group-hover:text-blue-800 leading-tight">
+                  {v.talla && `Talla ${v.talla}`}{v.talla && v.color && <br/>}{v.color}
+                </p>
+                <p className="text-sm text-slate-600 mt-1 font-medium">{formatCurrency(v.precioVenta)}</p>
+              </div>
+              {v.imagenUrl && (
+                <img src={`http://localhost:3000${v.imagenUrl}`} className="w-12 h-12 object-cover rounded-lg border ml-2 shrink-0 bg-white" alt="" />
+              )}
+            </div>
+
+            <p className={`text-xs mt-auto font-semibold px-2 py-1 rounded inline-block ${libre <= 0 ? 'bg-red-100 text-red-700' : libre <= 3 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
               {libre <= 0 ? 'Sin stock' : `${libre} disponibles`}
             </p>
           </button>
@@ -160,7 +175,8 @@ function ModalProforma({ proforma, onClose }) {
 
   return (
     <Dialog open={!!proforma} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl p-0 overflow-hidden bg-white">
+      <DialogContent aria-describedby={undefined} className="max-w-3xl p-0 overflow-hidden bg-white">
+        <DialogDescription className="sr-only">Detalles de la proforma</DialogDescription>
         <div className="no-print">
           <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
             <DialogHeader>
@@ -335,15 +351,19 @@ export function POSModals({ pos }) {
 
       {/* Modal: Variantes */}
       <Dialog open={!!modalVariantes} onOpenChange={() => setModalVariantes(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle className="text-lg">{modalVariantes?.nombre} — Seleccionar variante</DialogTitle></DialogHeader>
+        <DialogContent aria-describedby={undefined} className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg">{modalVariantes?.nombre} — Seleccionar variante</DialogTitle>
+            <DialogDescription className="sr-only">Seleccione una variante del producto</DialogDescription>
+          </DialogHeader>
           <VariantesSelector producto={modalVariantes} onSeleccionar={(v) => agregarVariante(modalVariantes, v)} />
         </DialogContent>
       </Dialog>
 
       {/* Modal: Pago */}
       <Dialog open={modalPago} onOpenChange={setModalPago}>
-        <DialogContent className="max-w-md p-0 overflow-hidden bg-slate-50">
+        <DialogContent aria-describedby={undefined} className="max-w-md p-0 overflow-hidden bg-slate-50">
+          <DialogDescription className="sr-only">Formulario de cobro</DialogDescription>
           <div className="bg-white px-6 py-4 border-b">
             <DialogHeader><DialogTitle className="text-xl font-bold">Registrar Cobro</DialogTitle></DialogHeader>
           </div>
@@ -440,8 +460,11 @@ export function POSModals({ pos }) {
 
       {/* Modal: Cliente */}
       <Dialog open={modalCliente} onOpenChange={v => { setModalCliente(v); if (!v) setMostrarCrearCliente(false) }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Asociar cliente a la venta</DialogTitle></DialogHeader>
+        <DialogContent aria-describedby={undefined} className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Asociar cliente a la venta</DialogTitle>
+            <DialogDescription className="sr-only">Búsqueda y selección de clientes</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 pt-2">
             {clienteId && (
               <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 shadow-sm">
@@ -485,7 +508,8 @@ export function POSModals({ pos }) {
 
       {/* Modal: Comprobante (Factura) */}
       <Dialog open={!!modalComprobante} onOpenChange={() => setModalComprobante(null)}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden bg-white">
+        <DialogContent aria-describedby={undefined} className="max-w-2xl p-0 overflow-hidden bg-white">
+          <DialogDescription className="sr-only">Comprobante de venta confirmada</DialogDescription>
           <div className="no-print">
             <div className="bg-green-600 text-white px-6 py-4 flex items-center justify-between">
               <DialogHeader><DialogTitle className="text-xl font-bold flex items-center gap-2">✓ Venta Confirmada</DialogTitle></DialogHeader>
@@ -565,10 +589,11 @@ export function POSModals({ pos }) {
 
       {/* Modal: Ventas en espera (Parking) */}
       <Dialog open={modalEspera} onOpenChange={setModalEspera}>
-        <DialogContent className="max-w-md bg-slate-50">
-          <div className="bg-white px-6 py-4 border-b">
-            <DialogHeader><DialogTitle className="flex items-center gap-2 text-lg"><Clock size={20} className="text-amber-500" /> Ventas en espera</DialogTitle></DialogHeader>
-          </div>
+        <DialogContent aria-describedby={undefined} className="max-w-md bg-slate-50">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg"><Clock size={20} className="text-amber-500" /> Ventas en espera</DialogTitle>
+            <DialogDescription className="sr-only">Lista de ventas en espera</DialogDescription>
+          </DialogHeader>
           <div className="p-6 space-y-3 max-h-96 overflow-y-auto">
             {enEspera.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-slate-400">

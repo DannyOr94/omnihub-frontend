@@ -125,8 +125,7 @@ export function usePOS() {
     }
     const stockLibre = producto.stockActual - producto.stockReservado
     if (producto.manejaStock && stockLibre <= 0) {
-      toast.error(`Sin stock disponible para "${producto.nombre}"`)
-      return
+      toast.warning(`Atención: "${producto.nombre}" sin stock (Solo Proforma)`)
     }
     const key = `p-${producto.id}`
     setCarrito(prev => {
@@ -160,7 +159,7 @@ export function usePOS() {
 
   function agregarVariante(producto, variante) {
     const stockLibre = variante.stockActual - variante.stockReservado
-    if (stockLibre <= 0) { toast.error('Sin stock para esta variante'); return }
+    if (stockLibre <= 0) { toast.warning('Atención: Variante sin stock (Solo Proforma)') }
     const key = `v-${variante.id}`
     setCarrito(prev => {
       const existe = prev.find(l => l._key === key)
