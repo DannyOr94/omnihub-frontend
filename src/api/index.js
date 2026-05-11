@@ -107,6 +107,14 @@ export const publicApi = {
   categorias:   ()       => api.get('/public/categorias'),
   boleta:       (datos)  => api.post('/public/boleta',        datos),
   homeConfig:   ()       => api.get('/public/home-config'),
+  submitTestimony: (datos) => api.post('/testimonios', datos),
+  getTestimonios: ()       => api.get('/testimonios/aprobados'),
+}
+
+export const testimoniosApi = {
+  listar: (pendientes) => api.get('/testimonios', { params: { pendientes } }),
+  aprobar: (id)        => api.patch(`/testimonios/${id}/aprobar`),
+  eliminar: (id)       => api.delete(`/testimonios/${id}`),
 }
 
 export const configuracionHomeApi = {
