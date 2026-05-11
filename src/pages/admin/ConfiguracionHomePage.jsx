@@ -5,7 +5,8 @@ import {
   Star, MessageSquare, HelpCircle, Clock, Phone, BarChart2,
   Type, Eye, Loader2, Info,
 } from 'lucide-react'
-import { configuracionHomeApi } from '../../api/index'
+import { configuracionHomeApi, testimoniosApi } from '../../api/index'
+import { Switch } from '../../components/ui/switch'
 import { Button }   from '../../components/ui/button'
 import { Input }    from '../../components/ui/input'
 import { Label }    from '../../components/ui/label'
@@ -74,6 +75,8 @@ export default function ConfiguracionHomePage() {
   const [guardando, setGuardando] = useState(null) // nombre de la sección guardando
   const [config,    setConfig]    = useState(null)
   const [errores,   setErrores]   = useState({})
+  const [pendientes, setPendientes] = useState([])
+  const [cargandoInbox, setCargandoInbox] = useState(false)
 
   // ── Cargar configuración ──────────────────────────────────────────────────
   const cargar = useCallback(async () => {
@@ -89,6 +92,21 @@ export default function ConfiguracionHomePage() {
   }, [])
 
   useEffect(() => { cargar() }, [cargar])
+
+  // ── Cargar testimonios pendientes ─────────────────────────────────────────
+  const cargarInbox = useCallback(async () => {
+    setCargandoInbox(true)
+    try {
+      const r = await testimoniosApi.listar(true)
+      setPendientes(r.data.data)
+    } catch {
+      toast.error('Error al cargar buzón de reseñas')
+    } finally {
+      setCargandoInbox(false)
+    }
+  }, [])
+
+  useEffect(() => { cargarInbox() }, [cargarInbox])
 
   // ── Actualizar campo individual ───────────────────────────────────────────
   function set(campo, valor) {
@@ -145,6 +163,24 @@ export default function ConfiguracionHomePage() {
     const arr = [...config.testimonios]
     arr[i] = { ...arr[i], [campo]: valor }
     set('testimonios', arr)
+  }
+
+  // ─── Acciones de Inbox ─────────────────────────────────────────────────────
+  async function aprobarResena(id) {
+    try {
+      await testimoniosApi.aprobar(id)
+      toast.success('Reseña aprobada')
+      cargarInbox()
+    } catch { toast.error('Error al aprobar') }
+  }
+
+  async function eliminarResena(id) {
+    if (!confirm('¿Eliminar esta reseña permanentemente?')) return
+    try {
+      await testimoniosApi.eliminar(id)
+      toast.success('Reseña eliminada')
+      cargarInbox()
+    } catch { toast.error('Error al eliminar') }
   }
 
   // ─── Sección: FAQs ────────────────────────────────────────────────────────
@@ -309,7 +345,18 @@ export default function ConfiguracionHomePage() {
       </Seccion>
 
       {/* ─── SECCIÓN: TESTIMONIOS ────────────────────────────────────────────── */}
-      <Seccion icono={MessageSquare} titulo="Testimonios" descripcion="Reseñas de clientes (máx. 8)">
+      <Seccion icono={MessageSquare} titulo="Testimonios" descripcion="Control de visibilidad y reseñas manuales">
+        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 mb-4">
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Mostrar sección de testimonios</p>
+            <p className="text-xs text-slate-500">Activa o desactiva la visibilidad en el home</p>
+          </div>
+          <Switch
+            checked={config.mostrarTestimonios ?? true}
+            onCheckedChange={v => set('mostrarTestimonios', v)}
+          />
+        </div>
+
         <div className="space-y-4">
           {(config.testimonios || []).map((t, i) => (
             <div key={i} className="border border-slate-200 rounded-xl p-4 space-y-3 bg-slate-50">
@@ -368,7 +415,44 @@ export default function ConfiguracionHomePage() {
           </button>
         )}
 
-        <BtnGuardar seccion="testimonios" datos={{ testimonios: config.testimonios }} />
+        <BtnGuardar seccion="testimonios" datos={{ testimonios: config.testimonios, mostrarTestimonios: config.mostrarTestimonios }} />
+      </Seccion>
+
+      {/* ─── SECCIÓN: BUZÓN DE RESEÑAS (PÚBLICAS) ─────────────────────────────── */}
+      <Seccion icono={Star} titulo="Buzón de Reseñas" descripcion="Comentarios enviados por clientes desde la web">
+        {cargandoInbox ? (
+          <div className="py-8 flex justify-center"><Loader2 size={20} className="animate-spin text-slate-400" /></div>
+        ) : pendientes.length === 0 ? (
+          <div className="py-8 text-center text-slate-400 text-sm">No hay reseñas pendientes de revisión.</div>
+        ) : (
+          <div className="space-y-3">
+            {pendientes.map(p => (
+              <div key={p.id} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm space-y-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold text-slate-800 text-sm">{p.nombre}</p>
+                    <div className="flex gap-0.5 my-1">
+                      {[1,2,3,4,5].map(n => (
+                        <Star key={n} size={12} className={n <= p.estrellas ? 'fill-amber-400 text-amber-400' : 'text-slate-300'} />
+                      ))}
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-slate-400">{new Date(p.fecha).toLocaleDateString()}</span>
+                </div>
+                <p className="text-sm text-slate-600 italic">"{p.texto}"</p>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" size="xs" onClick={() => eliminarResena(p.id)} className="text-red-500 hover:text-red-600 border-red-100 h-7 px-3 text-[11px]">Eliminar</Button>
+                  <Button size="xs" onClick={() => aprobarResena(p.id)} className="h-7 px-3 text-[11px]">Aprobar y publicar</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex justify-center pt-2">
+          <Button variant="ghost" size="xs" onClick={cargarInbox} className="text-slate-400 hover:text-slate-600">
+            <RefreshCw size={12} className="mr-1.5" /> Actualizar buzón
+          </Button>
+        </div>
       </Seccion>
 
       {/* ─── SECCIÓN: FAQ ────────────────────────────────────────────────────── */}
