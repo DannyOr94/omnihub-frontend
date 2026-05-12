@@ -91,8 +91,6 @@ export default function ConfiguracionHomePage() {
     }
   }, [])
 
-  useEffect(() => { cargar() }, [cargar])
-
   // ── Cargar testimonios pendientes ─────────────────────────────────────────
   const cargarInbox = useCallback(async () => {
     setCargandoInbox(true)
@@ -106,7 +104,18 @@ export default function ConfiguracionHomePage() {
     }
   }, [])
 
-  useEffect(() => { cargarInbox() }, [cargarInbox])
+  useEffect(() => { 
+    cargar() 
+    cargarInbox()
+    
+    // Polling cada 30 segundos para el Admin también
+    const interval = setInterval(() => {
+      cargar()
+      cargarInbox()
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [cargar, cargarInbox])
 
   // ── Actualizar campo individual ───────────────────────────────────────────
   function set(campo, valor) {
@@ -122,6 +131,9 @@ export default function ConfiguracionHomePage() {
       const r = await configuracionHomeApi.actualizar(datos)
       setConfig(r.data.data)
       toast.success('Sección guardada correctamente')
+      // Refrescar todo tras guardar
+      cargar()
+      cargarInbox()
     } catch (err) {
       const msg = err?.response?.data?.message || 'Error al guardar'
       toast.error(msg)
@@ -170,6 +182,8 @@ export default function ConfiguracionHomePage() {
     try {
       await testimoniosApi.aprobar(id)
       toast.success('Reseña aprobada')
+      // Forzar recarga de ambos para sincronizar la lista de comentarios
+      cargar()
       cargarInbox()
     } catch { toast.error('Error al aprobar') }
   }
@@ -179,6 +193,7 @@ export default function ConfiguracionHomePage() {
     try {
       await testimoniosApi.eliminar(id)
       toast.success('Reseña eliminada')
+      cargar()
       cargarInbox()
     } catch { toast.error('Error al eliminar') }
   }
@@ -344,11 +359,11 @@ export default function ConfiguracionHomePage() {
         }} />
       </Seccion>
 
-      {/* ─── SECCIÓN: TESTIMONIOS ────────────────────────────────────────────── */}
-      <Seccion icono={MessageSquare} titulo="Testimonios" descripcion="Control de visibilidad y reseñas manuales">
+      {/* ─── SECCIÓN: COMENTARIOS ────────────────────────────────────────────── */}
+      <Seccion icono={MessageSquare} titulo="Comentarios (Testimonios)" descripcion="Control de visibilidad y reseñas manuales">
         <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 mb-4">
           <div>
-            <p className="text-sm font-semibold text-slate-800">Mostrar sección de testimonios</p>
+            <p className="text-sm font-semibold text-slate-800">Mostrar sección de comentarios</p>
             <p className="text-xs text-slate-500">Activa o desactiva la visibilidad en el home</p>
           </div>
           <Switch
@@ -361,9 +376,9 @@ export default function ConfiguracionHomePage() {
           {(config.testimonios || []).map((t, i) => (
             <div key={i} className="border border-slate-200 rounded-xl p-4 space-y-3 bg-slate-50">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Testimonio {i + 1}</span>
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Comentario {i + 1}</span>
                 <button
-                  onClick={() => eliminarTestimonio(i)}
+                   onClick={() => eliminarTestimonio(i)}
                   className="text-red-400 hover:text-red-600 transition-colors p-1"
                   title="Eliminar"
                 >
@@ -390,13 +405,25 @@ export default function ConfiguracionHomePage() {
                   ))}
                 </div>
               </Campo>
-              <Campo label="Texto del testimonio" hint="Máx. 500 caracteres">
-                <Textarea value={t.texto} onChange={e => setTestimonio(i, 'texto', e.target.value)} maxLength={500} rows={2} placeholder="Excelente servicio…" />
+              <Campo label="Texto del comentario" hint={t.texto ? "Bloqueado por ética" : "Máx. 500 caracteres"}>
+                <Textarea 
+                  value={t.texto} 
+                  onChange={e => setTestimonio(i, 'texto', e.target.value)}
+                  disabled={!!t.texto}
+                  className={t.texto ? "bg-slate-100 text-slate-500 cursor-not-allowed opacity-80" : ""}
+                  rows={2} 
+                  placeholder="Escribe el comentario aquí..."
+                />
               </Campo>
-              <Campo label="Estrellas">
-                <div className="flex gap-1">
+              <Campo label="Estrellas" hint={t.texto ? "No editable" : "Selecciona la puntuación"}>
+                <div className={`flex gap-1 ${t.texto ? 'opacity-60' : ''}`}>
                   {[1,2,3,4,5].map(n => (
-                    <button key={n} onClick={() => setTestimonio(i, 'estrellas', n)}>
+                    <button 
+                      key={n} 
+                      onClick={() => setTestimonio(i, 'estrellas', n)}
+                      disabled={!!t.texto}
+                      className={t.texto ? "cursor-not-allowed" : "hover:scale-110 transition-transform"}
+                    >
                       <Star size={20} className={n <= t.estrellas ? 'fill-amber-400 text-amber-400' : 'text-slate-300'} />
                     </button>
                   ))}
@@ -411,7 +438,7 @@ export default function ConfiguracionHomePage() {
             onClick={agregarTestimonio}
             className="w-full border-2 border-dashed border-slate-200 rounded-xl py-3 text-sm text-slate-400 hover:text-blue-600 hover:border-blue-300 transition-colors flex items-center justify-center gap-2"
           >
-            <Plus size={15} /> Agregar testimonio
+            <Plus size={15} /> Agregar comentario
           </button>
         )}
 
@@ -429,12 +456,17 @@ export default function ConfiguracionHomePage() {
             {pendientes.map(p => (
               <div key={p.id} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm space-y-2">
                 <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold text-slate-800 text-sm">{p.nombre}</p>
-                    <div className="flex gap-0.5 my-1">
-                      {[1,2,3,4,5].map(n => (
-                        <Star key={n} size={12} className={n <= p.estrellas ? 'fill-amber-400 text-amber-400' : 'text-slate-300'} />
-                      ))}
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg ${p.color || 'bg-blue-500'} flex items-center justify-center text-white text-[10px] font-black shadow-sm`}>
+                      {p.nombre?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-800 text-sm">{p.nombre}</p>
+                      <div className="flex gap-0.5 my-0.5">
+                        {[1,2,3,4,5].map(n => (
+                          <Star key={n} size={10} className={n <= p.estrellas ? 'fill-amber-400 text-amber-400' : 'text-slate-300'} />
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <span className="text-[10px] text-slate-400">{new Date(p.fecha).toLocaleDateString()}</span>

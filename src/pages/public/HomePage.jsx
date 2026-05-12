@@ -47,27 +47,35 @@ export default function HomePage() {
   const [cargando, setCargando] = useState(true)
 
   useEffect(() => {
-    // Cargar Configuración del Home
-    publicApi.homeConfig()
-      .then(r => {
-        if (r.data?.data) {
-          setConfig(prev => ({ ...prev, ...r.data.data }))
-        }
-      })
-      .catch(() => { /* Fallback a DEFAULTS */ })
+    const fetchAll = () => {
+      // Cargar Configuración del Home
+      publicApi.homeConfig()
+        .then(r => {
+          if (r.data?.data) {
+            setConfig(prev => ({ ...prev, ...r.data.data }))
+          }
+        })
+        .catch(() => { /* Fallback a DEFAULTS */ })
 
-    // Cargar Productos Destacados
-    publicApi.catalogo({ limit: 8 })
-      .then(r => {
-        const lista = r.data.data ?? []
-        setProductos(lista.filter(p => p.disponible).slice(0, 4))
-      })
-      .catch(() => setProductos([]))
-      .finally(() => setCargando(false))
+      // Cargar Productos Destacados
+      publicApi.catalogo({ limit: 8 })
+        .then(r => {
+          const lista = r.data.data ?? []
+          setProductos(lista.filter(p => p.disponible).slice(0, 4))
+        })
+        .catch(() => setProductos([]))
+        .finally(() => setCargando(false))
+    }
+
+    fetchAll()
+    
+    // Polling cada 30 segundos para actualizaciones automáticas
+    const interval = setInterval(fetchAll, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-[#fcfcfd] min-h-screen selection:bg-blue-500/30">
       
       {/* Hero: Moda + Tecnología */}
       <HomeHero config={config} />

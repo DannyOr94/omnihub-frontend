@@ -80,28 +80,37 @@ export default function BusinessSections() {
   }, [])
 
   return (
-    <section ref={containerRef} className="max-w-7xl mx-auto px-4 py-32">
-      <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-        <BusinessCard
-          icono={Shirt}
-          image="/fashion-hero.png"
-          colorTag="text-rose-400"
-          tag="Moda Josefina"
-          titulo="Tienda Doña Tere"
-          descripcion="Vistiendo a San José con estilo y calidez. Una selección curada de moda para toda la familia con la calidad de siempre."
-          items={['Textiles Premium', 'Tallas para todos', 'Tendencias Locales', 'Atención Directa']}
-          to="/catalogo?tipo=TEXTIL"
-        />
-        <BusinessCard
-          icono={Cpu}
-          image="/tech-hero.png"
-          colorTag="text-blue-400"
-          tag="Tech Solutions"
-          titulo="K.M.A. Conexiones"
-          descripcion="Tu aliado tecnológico en el corazón de la ciudad. Reparaciones expertas y accesorios de última generación con garantía total."
-          items={['Soporte Especializado', 'Repuestos de Grado A', 'Gadgets Exclusivos', 'Diagnóstico Express']}
-          to="/catalogo?tipo=TECNOLOGIA"
-        />
+    <section ref={containerRef} className="relative py-32 overflow-hidden">
+      {/* Decorative Elements */}
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-blue-500/5 rounded-full blur-[100px]" />
+        <div className="absolute bottom-1/4 -right-20 w-[500px] h-[500px] bg-rose-500/5 rounded-full blur-[120px]" />
+        <div className="absolute top-0 left-0 w-full h-full opacity-[0.015] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '60px 60px' }} />
+      </div>
+
+      <div className="max-w-[1440px] mx-auto px-6 relative z-10">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-16">
+          <BusinessCard
+            icono={Shirt}
+            image="/fashion-hero.png"
+            colorTag="text-rose-400"
+            tag="Moda Josefina"
+            titulo="Tienda Doña Tere"
+            descripcion="Vistiendo a San José con estilo y calidez. Una selección curada de moda para toda la familia con la calidad de siempre."
+            items={['Textiles Premium', 'Tallas para todos', 'Tendencias Locales', 'Atención Directa']}
+            to="/catalogo?tipo=TEXTIL"
+          />
+          <BusinessCard
+            icono={Cpu}
+            image="/tech-hero.png"
+            colorTag="text-blue-400"
+            tag="Tech Solutions"
+            titulo="K.M.A. Conexiones"
+            descripcion="Tu aliado tecnológico en el corazón de la ciudad. Reparaciones expertas y accesorios de última generación con garantía total."
+            items={['Soporte Especializado', 'Repuestos de Grado A', 'Gadgets Exclusivos', 'Diagnóstico Express']}
+            to="/catalogo?tipo=TECNOLOGIA"
+          />
+        </div>
       </div>
     </section>
   )
