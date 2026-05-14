@@ -63,6 +63,10 @@ export const apartadosApi = {
   crear:    (datos)      => api.post('/apartados',              datos),
   abonar:   (id, datos)  => api.post(`/apartados/${id}/abonos`, datos),
   cancelar: (id, motivo) => api.patch(`/apartados/${id}/cancelar`, { motivo }),
+  // Temporales (Reservas web)
+  listarTemporales: (params) => api.get('/apartados/temporales/listar', { params }),
+  aprobarTemporal:  (id)     => api.patch(`/apartados/temporales/${id}/aprobar`),
+  rechazarTemporal: (id, motivo) => api.patch(`/apartados/temporales/${id}/rechazar`, { motivo }),
 }
 
 export const pedidosApi = {
@@ -106,6 +110,8 @@ export const publicApi = {
   catalogo:     (params) => api.get('/public/catalogo',      { params }),
   categorias:   ()       => api.get('/public/categorias'),
   boleta:       (datos)  => api.post('/public/boleta',        datos),
+  reservarTemporal: (datos) => api.post('/public/reservar-temporal', datos),
+  subirComprobanteTemporal: (id, formData) => api.post(`/public/reservar-temporal/${id}/comprobante`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   homeConfig:   ()       => api.get('/public/home-config'),
   submitTestimony: (datos) => api.post('/testimonios', datos),
   getTestimonios: ()       => api.get('/testimonios/aprobados'),

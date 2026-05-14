@@ -46,15 +46,30 @@ export default function TestimonialsSection({ testimonios = [], visible }) {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.from('.testimonial-card', {
+      // 1. Animación premium del Header (stagger)
+      gsap.from('.testimonial-header > *', {
         opacity: 0,
-        y: 50,
-        stagger: 0.2,
-        duration: 1.2,
-        ease: 'power4.out',
+        y: 30,
+        stagger: 0.15,
+        duration: 1,
+        ease: 'power3.out',
         scrollTrigger: {
           trigger: containerRef.current,
           start: 'top 80%'
+        }
+      })
+
+      // 2. Animación fluida de las tarjetas con escala
+      gsap.from('.testimonial-card', {
+        opacity: 0,
+        y: 50,
+        scale: 0.95,
+        stagger: 0.2,
+        duration: 1.2,
+        ease: 'back.out(1.2)', // Efecto rebote sutil premium
+        scrollTrigger: {
+          trigger: '.testimonial-grid',
+          start: 'top 85%'
         }
       })
     }, containerRef)
@@ -65,17 +80,36 @@ export default function TestimonialsSection({ testimonios = [], visible }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setSubmitting(true)
-    try {
-      await publicApi.submitTestimony(formData)
-      toast.success('¡Gracias! Tu comentario ha sido enviado para revisión.')
-      setShowModal(false)
-      setFormData({ nombre: '', texto: '', estrellas: 5, color: 'bg-blue-500' })
-    } catch {
-      toast.error('Hubo un problema al enviar tu comentario.')
-    } finally {
-      setSubmitting(false)
+    
+    // Validación visual premium
+    if (formData.nombre.trim().length < 3) {
+      toast.error('El nombre debe tener al menos 3 caracteres', { icon: '⚠️' })
+      return
     }
+    if (formData.texto.trim().length < 10) {
+      toast.error('Por favor, cuéntanos un poco más (mínimo 10 caracteres)', { icon: '📝' })
+      return
+    }
+
+    setSubmitting(true)
+    
+    // Promesa visual con estados de carga premium (sonner)
+    toast.promise(
+      publicApi.submitTestimony(formData),
+      {
+        loading: 'Enviando tu testimonio...',
+        success: () => {
+          setShowModal(false)
+          setFormData({ nombre: '', texto: '', estrellas: 5, color: 'bg-blue-500' })
+          setSubmitting(false)
+          return '¡Gracias! Tu comentario está siendo revisado.'
+        },
+        error: () => {
+          setSubmitting(false)
+          return 'Lo sentimos, hubo un problema al enviar tu comentario.'
+        }
+      }
+    )
   }
 
   return (
@@ -87,7 +121,7 @@ export default function TestimonialsSection({ testimonios = [], visible }) {
       
       <div className="max-w-[1440px] mx-auto px-6 relative z-10">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-20 gap-10">
-          <div className="max-w-2xl">
+          <div className="testimonial-header max-w-2xl">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 text-blue-400 mb-6 border border-blue-500/20">
               <MessageCircle size={16} />
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">Opiniones Reales</span>
@@ -105,7 +139,7 @@ export default function TestimonialsSection({ testimonios = [], visible }) {
           </button>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="testimonial-grid grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {listaTestimonios.map((t, i) => (
             <div
               key={i}
@@ -242,7 +276,14 @@ export default function TestimonialsSection({ testimonios = [], visible }) {
                   disabled={submitting}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black px-8 py-4 rounded-xl shadow-xl shadow-blue-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {submitting ? <Loader2 size={18} className="animate-spin" /> : 'Enviar'}
+                  {submitting ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>Enviando...</span>
+                    </>
+                  ) : (
+                    'Enviar Testimonio'
+                  )}
                 </button>
               </div>
             </form>

@@ -21,6 +21,7 @@ import ProductosPage   from '../pages/admin/ProductosPage'
 import InventarioPage  from '../pages/admin/InventarioPage'
 import ClientesPage    from '../pages/admin/ClientesPage'
 import ApartadosPage   from '../pages/admin/ApartadosPage'
+import ReservasWebPage from '../pages/admin/ReservasWebPage'
 import PedidosPage     from '../pages/admin/PedidosPage'
 import BoletasPage     from '../pages/admin/BoletasPage'
 import ReportesPage    from '../pages/admin/ReportesPage'
@@ -90,6 +91,7 @@ export default function AppRouter() {
             <Route element={<RequiereRol roles={['ADMINISTRADOR', 'VENDEDOR']} />}>
               <Route path="/admin/clientes"  element={<ClientesPage />} />
               <Route path="/admin/apartados" element={<ApartadosPage />} />
+              <Route path="/admin/reservas-web" element={<ReservasWebPage />} />
               <Route path="/admin/pedidos"   element={<PedidosPage />} />
             </Route>
 

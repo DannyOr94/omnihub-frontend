@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { publicApi } from '../../api/index'
 
 // Componentes modulares
@@ -42,37 +42,30 @@ const DEFAULTS = {
 }
 
 export default function HomePage() {
-  const [config, setConfig] = useState(DEFAULTS)
-  const [productos, setProductos] = useState([])
-  const [cargando, setCargando] = useState(true)
+  // 1. Fetch de Configuración con Auto-Refetch (Polling cada 30s)
+  const { data: configData } = useQuery({
+    queryKey: ['homeConfig'],
+    queryFn: async () => {
+      const r = await publicApi.homeConfig()
+      return r.data?.data || {}
+    },
+    refetchInterval: 30000, // Polling automático (reemplaza el setInterval)
+    initialData: DEFAULTS,  // Evita parpadeos mientras carga
+  })
 
-  useEffect(() => {
-    const fetchAll = () => {
-      // Cargar Configuración del Home
-      publicApi.homeConfig()
-        .then(r => {
-          if (r.data?.data) {
-            setConfig(prev => ({ ...prev, ...r.data.data }))
-          }
-        })
-        .catch(() => { /* Fallback a DEFAULTS */ })
+  // Mezclamos la info de la BD con los Defaults
+  const config = { ...DEFAULTS, ...configData }
 
-      // Cargar Productos Destacados
-      publicApi.catalogo({ limit: 8 })
-        .then(r => {
-          const lista = r.data.data ?? []
-          setProductos(lista.filter(p => p.disponible).slice(0, 4))
-        })
-        .catch(() => setProductos([]))
-        .finally(() => setCargando(false))
-    }
-
-    fetchAll()
-    
-    // Polling cada 30 segundos para actualizaciones automáticas
-    const interval = setInterval(fetchAll, 30000)
-    return () => clearInterval(interval)
-  }, [])
+  // 2. Fetch de Productos Destacados
+  const { data: productos = [], isLoading: cargando } = useQuery({
+    queryKey: ['homeProductosDestacados'],
+    queryFn: async () => {
+      const r = await publicApi.catalogo({ limit: 8 })
+      const lista = r.data?.data || []
+      return lista.filter(p => p.disponible).slice(0, 4)
+    },
+    refetchInterval: 30000,
+  })
 
   return (
     <div className="bg-[#fcfcfd] min-h-screen selection:bg-blue-500/30">

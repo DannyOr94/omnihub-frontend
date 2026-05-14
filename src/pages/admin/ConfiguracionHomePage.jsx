@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import {
   Home, Save, RefreshCw, Plus, Trash2, ChevronDown, ChevronUp,
   Star, MessageSquare, HelpCircle, Clock, Phone, BarChart2,
-  Type, Eye, Loader2, Info,
+  Type, Eye, Loader2, Info, DollarSign
 } from 'lucide-react'
 import { configuracionHomeApi, testimoniosApi } from '../../api/index'
 import { Switch } from '../../components/ui/switch'
@@ -518,6 +518,80 @@ export default function ConfiguracionHomePage() {
         )}
 
         <BtnGuardar seccion="faqs" datos={{ faqs: config.faqs }} />
+      </Seccion>
+
+      {/* ─── SECCIÓN: CUENTAS DE PAGO ────────────────────────────────────────── */}
+      <Seccion icono={DollarSign} titulo="Cuentas de Pago" descripcion="Configura las cuentas bancarias para los apartados">
+        <div className="space-y-4">
+          {(config.cuentasPago || []).map((c, i) => (
+            <div key={i} className="border border-slate-200 rounded-xl p-4 space-y-3 bg-slate-50 relative">
+              <button 
+                onClick={() => set('cuentasPago', config.cuentasPago.filter((_, idx) => idx !== i))}
+                className="absolute top-4 right-4 text-red-400 hover:text-red-600 transition-colors"
+              >
+                <Trash2 size={14} />
+              </button>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Campo label="Banco / Método">
+                  <Input 
+                    value={c.banco} 
+                    onChange={e => {
+                      const arr = [...config.cuentasPago]
+                      arr[i] = { ...arr[i], banco: e.target.value }
+                      set('cuentasPago', arr)
+                    }} 
+                    placeholder="SINPE Móvil, BAC, etc." 
+                  />
+                </Campo>
+                <Campo label="Tipo de Cuenta">
+                  <Input 
+                    value={c.tipo} 
+                    onChange={e => {
+                      const arr = [...config.cuentasPago]
+                      arr[i] = { ...arr[i], tipo: e.target.value }
+                      set('cuentasPago', arr)
+                    }} 
+                    placeholder="IBAN, Celular, etc." 
+                  />
+                </Campo>
+              </div>
+
+              <Campo label="Titular">
+                <Input 
+                  value={c.titular} 
+                  onChange={e => {
+                    const arr = [...config.cuentasPago]
+                    arr[i] = { ...arr[i], titular: e.target.value }
+                    set('cuentasPago', arr)
+                  }} 
+                  placeholder="Nombre del dueño de la cuenta" 
+                />
+              </Campo>
+
+              <Campo label="Número / Dato">
+                <Input 
+                  value={c.numero} 
+                  onChange={e => {
+                    const arr = [...config.cuentasPago]
+                    arr[i] = { ...arr[i], numero: e.target.value }
+                    set('cuentasPago', arr)
+                  }} 
+                  placeholder="Número de cuenta o teléfono" 
+                />
+              </Campo>
+            </div>
+          ))}
+
+          <button
+            onClick={() => set('cuentasPago', [...(config.cuentasPago || []), { banco: '', titular: '', numero: '', tipo: '' }])}
+            className="w-full border-2 border-dashed border-slate-200 rounded-xl py-3 text-sm text-slate-400 hover:text-blue-600 hover:border-blue-300 transition-colors flex items-center justify-center gap-2"
+          >
+            <Plus size={15} /> Agregar cuenta bancaria
+          </button>
+        </div>
+
+        <BtnGuardar seccion="cuentasPago" datos={{ cuentasPago: config.cuentasPago }} />
       </Seccion>
 
       {/* ─── SECCIÓN: HORARIO Y CONTACTO ─────────────────────────────────────── */}

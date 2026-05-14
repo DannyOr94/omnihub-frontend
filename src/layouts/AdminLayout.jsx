@@ -3,7 +3,7 @@ import { useState } from 'react'
 import {
   LayoutDashboard, ShoppingCart, Package, Warehouse,
   Users, BookMarked, ClipboardList, Wrench, BarChart3,
-  Tag, UserCog, LogOut, Menu, X, DollarSign, Store, Home,
+  Tag, UserCog, LogOut, Menu, X, DollarSign, Store, Home, Globe
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { Button }  from '../components/ui/button'
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { to: '/admin/boletas',    label: 'Servicio Técnico',icon: Wrench,          roles: ['ADMINISTRADOR', 'VENDEDOR', 'TECNICO'] },
   { to: '/admin/clientes',   label: 'Clientes',        icon: Users,           roles: ['ADMINISTRADOR', 'VENDEDOR'] },
   { to: '/admin/apartados',  label: 'Apartados',       icon: BookMarked,      roles: ['ADMINISTRADOR', 'VENDEDOR'] },
+  { to: '/admin/reservas-web', label: 'Reservas Web',  icon: Globe,           roles: ['ADMINISTRADOR', 'VENDEDOR'] },
   { to: '/admin/pedidos',    label: 'Pedidos Especiales', icon: ClipboardList, roles: ['ADMINISTRADOR', 'VENDEDOR'] },
   // Solo admin
   { to: '/admin/productos',  label: 'Productos',       icon: Package,         roles: ['ADMINISTRADOR'] },
