@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import ScrollToTop from '../components/shared/ScrollToTop'
 
 // Layouts
 import AdminLayout  from '../layouts/AdminLayout'
@@ -63,6 +64,7 @@ function RequiereRol({ roles }) {
 export default function AppRouter() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
 
         {/* ── Portal público ───────────────────────────────────────────────── */}

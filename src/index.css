@@ -10,7 +10,12 @@
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
     @apply bg-[#fcfcfd] text-slate-900;
+  }
+
+  html {
+    overflow-y: scroll;
   }
 
   :root {

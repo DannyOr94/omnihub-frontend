@@ -65,6 +65,7 @@ export const apartadosApi = {
   cancelar: (id, motivo) => api.patch(`/apartados/${id}/cancelar`, { motivo }),
   // Temporales (Reservas web)
   listarTemporales: (params) => api.get('/apartados/temporales/listar', { params }),
+  confirmarTemporal: (id)    => api.patch(`/apartados/temporales/${id}/confirmar`),
   aprobarTemporal:  (id)     => api.patch(`/apartados/temporales/${id}/aprobar`),
   rechazarTemporal: (id, motivo) => api.patch(`/apartados/temporales/${id}/rechazar`, { motivo }),
 }

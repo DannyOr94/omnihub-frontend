@@ -202,8 +202,8 @@ function ModalReserva({ abierto, setAbierto, producto, onSuccess, cuentasPago = 
     mutationFn: (datos) => publicApi.reservarTemporal(datos),
     onSuccess: (res) => {
       setReservaId(res.data.data.id)
-      setStep(2)
-      toast.success('¡Inventario reservado!', { description: 'Ahora puedes realizar el pago.' })
+      setStep(2) // Ahora el paso 2 es "Solicitud Recibida / Esperando Validación"
+      toast.success('¡Solicitud enviada!', { description: 'Revisaremos la disponibilidad pronto.' })
       queryClient.invalidateQueries({ queryKey: ['catalogo'] })
     },
     onError: (err) => {
@@ -288,13 +288,13 @@ function ModalReserva({ abierto, setAbierto, producto, onSuccess, cuentasPago = 
           </div>
           <DialogTitle className="text-2xl font-black mb-2 text-white">
             {step === 1 && 'Apartar Producto'}
-            {step === 2 && 'Información de Pago'}
+            {step === 2 && 'Solicitud Recibida'}
             {step === 3 && 'Enviar Comprobante'}
             {step === 4 && '¡Todo Listo!'}
           </DialogTitle>
           <DialogDescription className="font-medium text-white/80">
             {step === 1 && 'Asegura el inventario por 15 minutos.'}
-            {step === 2 && 'Realiza la transferencia para confirmar.'}
+            {step === 2 && 'Estamos validando la disponibilidad física.'}
             {step === 3 && 'Adjunta la captura de pantalla del pago.'}
             {step === 4 && 'Tu reserva ha sido enviada a revisión.'}
           </DialogDescription>
@@ -343,24 +343,33 @@ function ModalReserva({ abierto, setAbierto, producto, onSuccess, cuentasPago = 
           )}
 
           {step === 2 && (
-            <div className="space-y-6 text-slate-900">
-              <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl text-center">
-                <p className="text-xs font-bold text-indigo-700 mb-1 uppercase tracking-wider">Monto a Transferir</p>
-                <p className="text-3xl font-black text-indigo-900">{formatCurrency(producto.precio)}</p>
+            <div className="space-y-6 text-center py-4">
+              <div className="bg-blue-50 border border-blue-100 p-6 rounded-3xl">
+                <p className="text-sm font-bold text-blue-900 mb-2">¡Gracias por tu interés!</p>
+                <p className="text-xs text-blue-700 leading-relaxed">
+                  Hemos recibido tu solicitud para el apartado de <strong>{producto.nombre}</strong>. 
+                  Para garantizar que el producto esté físicamente disponible, un administrador revisará tu pedido en los próximos minutos.
+                </p>
               </div>
-              <div className="space-y-3">
-                {cuentasAMostrar.map((c, i) => (
-                  <div key={i} className="p-3 bg-white border border-slate-100 rounded-xl flex flex-col">
-                    <span className="text-xs font-black text-blue-600">{c.banco}</span>
-                    {c.tipo && <span className="text-[10px] text-slate-400 font-bold uppercase">{c.tipo}</span>}
-                    <span className="text-sm font-bold text-slate-800 mt-1 select-all">{c.numero}</span>
-                    <span className="text-[10px] text-slate-500">A nombre de: {c.titular}</span>
+              
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 text-left p-3 bg-slate-50 rounded-2xl">
+                  <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                    <Info size={16} className="text-blue-600" />
                   </div>
-                ))}
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Te enviaremos un <strong>correo electrónico</strong> con los datos de pago (SINPE/Transferencia) una vez confirmada la disponibilidad.
+                  </p>
+                </div>
               </div>
-              <Button onClick={() => setStep(3)} className="w-full h-14 bg-indigo-600 text-white rounded-2xl font-black">
-                Ya realicé el pago
+
+              <Button onClick={handleClose} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black shadow-lg">
+                Entendido, esperaré el correo
               </Button>
+              
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                ID de Solicitud: #{reservaId}
+              </p>
             </div>
           )}
 

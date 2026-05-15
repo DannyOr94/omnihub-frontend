@@ -15,7 +15,8 @@ import { Textarea } from '../../components/ui/textarea'
 // ─── Componente de Estado ──────────────────────────────────────────────────
 function EstadoBadge({ estado }) {
   const config = {
-    PENDIENTE_COMPROBANTE: { label: 'Esperando Comprobante', className: 'bg-amber-100 text-amber-800 border-amber-200' },
+    SOLICITADO: { label: 'Nueva Solicitud', className: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
+    PENDIENTE_PAGO: { label: 'Pago Pendiente', className: 'bg-amber-100 text-amber-800 border-amber-200' },
     EN_REVISION: { label: 'En Revisión', className: 'bg-blue-100 text-blue-800 border-blue-200' },
     APROBADO: { label: 'Aprobado', className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
     RECHAZADO: { label: 'Rechazado', className: 'bg-red-100 text-red-800 border-red-200' },
@@ -35,11 +36,12 @@ const getUrl = (url) => url ? (url.startsWith('http') ? url : `http://localhost:
 export default function ReservasWebPage() {
   const [reservas, setReservas] = useState([])
   const [cargando, setCargando] = useState(true)
-  const [filtroEstado, setFiltroEstado] = useState('EN_REVISION')
+  const [filtroEstado, setFiltroEstado] = useState('SOLICITADO')
   
   // Modales
   const [reservaSelec, setReservaSelec] = useState(null)
   const [modalAprobar, setModalAprobar] = useState(false)
+  const [modalConfirmar, setModalConfirmar] = useState(false)
   const [modalRechazar, setModalRechazar] = useState(false)
   const [motivoRechazo, setMotivoRechazo] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -59,6 +61,20 @@ export default function ReservasWebPage() {
   useEffect(() => { cargar() }, [cargar])
 
   // Acciones
+  async function handleConfirmar() {
+    setEnviando(true)
+    try {
+      await apartadosApi.confirmarTemporal(reservaSelec.id)
+      toast.success('Disponibilidad confirmada. El cliente recibió un correo con datos de pago.')
+      setModalConfirmar(false)
+      cargar()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error al confirmar disponibilidad')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
   async function handleAprobar() {
     setEnviando(true)
     try {
@@ -109,7 +125,8 @@ export default function ReservasWebPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="TODOS">Todos los estados</SelectItem>
-              <SelectItem value="PENDIENTE_COMPROBANTE">Pendiente Comprobante</SelectItem>
+              <SelectItem value="SOLICITADO">Nueva Solicitud</SelectItem>
+              <SelectItem value="PENDIENTE_PAGO">Pago Pendiente</SelectItem>
               <SelectItem value="EN_REVISION">En Revisión</SelectItem>
               <SelectItem value="APROBADO">Aprobados</SelectItem>
               <SelectItem value="RECHAZADO">Rechazados</SelectItem>
@@ -211,7 +228,27 @@ export default function ReservasWebPage() {
                   )}
                 </div>
 
-                {/* Acciones */}
+                 {/* Acciones */}
+                {(res.estado === 'SOLICITADO' || res.estado === 'PENDIENTE_PAGO') && (
+                  <div className="p-4 bg-white border-t border-slate-100 flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 font-bold rounded-xl text-red-600 border-slate-200"
+                      onClick={() => { setReservaSelec(res); setModalRechazar(true) }}
+                    >
+                      Rechazar
+                    </Button>
+                    {res.estado === 'SOLICITADO' && (
+                      <Button 
+                        className="flex-1 font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
+                        onClick={() => { setReservaSelec(res); setModalConfirmar(true) }}
+                      >
+                        Confirmar Stock
+                      </Button>
+                    )}
+                  </div>
+                )}
+
                 {res.estado === 'EN_REVISION' && (
                   <div className="p-4 bg-white border-t border-slate-100 flex gap-2">
                     <Button 
@@ -234,6 +271,27 @@ export default function ReservasWebPage() {
           </div>
         )}
       </div>
+
+      {/* ── Modal Confirmar Disponibilidad ────────────────────────────────── */}
+      <Dialog open={modalConfirmar} onOpenChange={setModalConfirmar}>
+        <DialogContent className="sm:max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-indigo-700">Confirmar Disponibilidad</DialogTitle>
+            <DialogDescription className="font-medium">
+              Al confirmar, el cliente recibirá un correo electrónico con las instrucciones de pago y las cuentas bancarias configuradas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-slate-600">¿Deseas confirmar que hay stock físico para la solicitud de <strong>{reservaSelec?.nombreContacto}</strong>?</p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setModalConfirmar(false)} className="rounded-xl">Cancelar</Button>
+            <Button onClick={handleConfirmar} disabled={enviando} className="rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-md text-white font-bold">
+              {enviando ? 'Confirmando...' : 'Confirmar y Enviar Datos'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Modal Aprobar ─────────────────────────────────────────────────── */}
       <Dialog open={modalAprobar} onOpenChange={setModalAprobar}>

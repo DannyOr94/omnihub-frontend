@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   ShoppingCart, DollarSign, Wrench, BookMarked,
   ClipboardList, Package, RefreshCw, TrendingUp,
-  Receipt, CreditCard,
+  Receipt, CreditCard, Globe
 } from 'lucide-react'
 import { reportesApi } from '../../api/index'
 import { cajaApi }     from '../../api/caja'
@@ -136,6 +136,7 @@ export default function DashboardPage() {
           <AlertaItem icono={Wrench}       label="Boletas en proceso"              cantidad={metricas?.alertas.boletasAbiertas  ?? 0} to="/admin/boletas"   color={metricas?.alertas.boletasAbiertas  > 0 ? 'blue'   : 'green'} />
           <AlertaItem icono={BookMarked}   label="Apartados vencidos"              cantidad={metricas?.alertas.apartadosVencidos ?? 0} to="/admin/apartados" color={metricas?.alertas.apartadosVencidos > 0 ? 'red'    : 'green'} />
           <AlertaItem icono={ClipboardList}label="Pedidos disponibles para entregar" cantidad={metricas?.alertas.pedidosDisponibles ?? 0} to="/admin/pedidos"  color={metricas?.alertas.pedidosDisponibles > 0 ? 'yellow' : 'green'} />
+          <AlertaItem icono={Globe} label="Nuevas reservas web" cantidad={metricas?.alertas.reservasWebNuevas ?? 0} to="/admin/reservas-web" color={metricas?.alertas.reservasWebNuevas > 0 ? 'indigo' : 'green'} />
           {esAdmin && (
             <AlertaItem icono={Package} label="Productos con stock bajo" cantidad={metricas?.alertas.productosStockBajo ?? 0} to="/admin/inventario" color={metricas?.alertas.productosStockBajo > 0 ? 'red' : 'green'} />
           )}
