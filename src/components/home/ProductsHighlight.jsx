@@ -59,9 +59,11 @@ export default function ProductsHighlight({ productos, cargando }) {
   if (!cargando && (!productos || productos.length === 0)) return null
 
   return (
-    <section className="bg-white py-32 relative overflow-hidden">
+    <section className="bg-white py-32 pb-40 relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-[300px] bg-gradient-to-b from-slate-950/5 to-transparent pointer-events-none" />
       <div className="absolute top-0 left-0 w-full h-full bg-noise opacity-[0.02] pointer-events-none" />
-      <div className="absolute top-1/2 right-0 w-96 h-96 bg-rose-500/5 rounded-full blur-[100px] translate-x-1/2 pointer-events-none" />
+      <div className="absolute top-1/2 right-0 w-[600px] h-[600px] bg-rose-500/5 rounded-full blur-[120px] translate-x-1/2 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[100px] -translate-x-1/2 pointer-events-none" />
 
       <div className="max-w-[1440px] mx-auto px-6 relative z-10">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-16 gap-10">

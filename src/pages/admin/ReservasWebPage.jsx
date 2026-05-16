@@ -18,6 +18,8 @@ function EstadoBadge({ estado }) {
     SOLICITADO: { label: 'Nueva Solicitud', className: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
     PENDIENTE_PAGO: { label: 'Pago Pendiente', className: 'bg-amber-100 text-amber-800 border-amber-200' },
     EN_REVISION: { label: 'En Revisión', className: 'bg-blue-100 text-blue-800 border-blue-200' },
+    LISTO_PARA_RETIRAR: { label: 'Listo para Retirar', className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+    ENTREGADO: { label: 'Entregado', className: 'bg-slate-100 text-slate-500 border-slate-200' },
     APROBADO: { label: 'Aprobado', className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
     RECHAZADO: { label: 'Rechazado', className: 'bg-red-100 text-red-800 border-red-200' },
     EXPIRADO: { label: 'Expirado', className: 'bg-slate-100 text-slate-800 border-slate-200' },
@@ -43,6 +45,8 @@ export default function ReservasWebPage() {
   const [modalAprobar, setModalAprobar] = useState(false)
   const [modalConfirmar, setModalConfirmar] = useState(false)
   const [modalRechazar, setModalRechazar] = useState(false)
+  const [modalEntregar, setModalEntregar] = useState(false)
+  const [modalVerImagen, setModalVerImagen] = useState(false)
   const [motivoRechazo, setMotivoRechazo] = useState('')
   const [enviando, setEnviando] = useState(false)
 
@@ -88,6 +92,20 @@ export default function ReservasWebPage() {
       setEnviando(false)
     }
   }
+  
+  async function handleEntregar() {
+    setEnviando(true)
+    try {
+      await apartadosApi.entregarTemporal(reservaSelec.id)
+      toast.success('Reserva marcada como entregada. Ciclo finalizado.')
+      setModalEntregar(false)
+      cargar()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error al marcar como entregado')
+    } finally {
+      setEnviando(false)
+    }
+  }
 
   async function handleRechazar(e) {
     e.preventDefault()
@@ -128,7 +146,9 @@ export default function ReservasWebPage() {
               <SelectItem value="SOLICITADO">Nueva Solicitud</SelectItem>
               <SelectItem value="PENDIENTE_PAGO">Pago Pendiente</SelectItem>
               <SelectItem value="EN_REVISION">En Revisión</SelectItem>
-              <SelectItem value="APROBADO">Aprobados</SelectItem>
+              <SelectItem value="LISTO_PARA_RETIRAR">Por Retirar</SelectItem>
+              <SelectItem value="ENTREGADO">Entregados</SelectItem>
+              <SelectItem value="APROBADO">Aprobados (Histórico)</SelectItem>
               <SelectItem value="RECHAZADO">Rechazados</SelectItem>
               <SelectItem value="EXPIRADO">Expirados</SelectItem>
             </SelectContent>
@@ -212,20 +232,43 @@ export default function ReservasWebPage() {
 
                   {/* Comprobante Link */}
                   {res.comprobanteUrl ? (
-                    <a 
-                      href={getUrl(res.comprobanteUrl)} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-sm rounded-xl transition-colors border border-blue-100"
-                    >
-                      <ExternalLink size={16} />
-                      Ver Comprobante Adjunto
-                    </a>
+                    <div className="space-y-2">
+                      <button 
+                        onClick={() => { setReservaSelec(res); setModalVerImagen(true) }}
+                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-sm rounded-xl transition-colors border border-blue-100"
+                      >
+                        <ImageIcon size={16} />
+                        Ver Comprobante de Pago
+                      </button>
+                    </div>
                   ) : (
                     <div className="text-center py-2 text-xs font-medium text-slate-400 bg-slate-50 rounded-xl border border-slate-100">
-                      Sin comprobante
+                      Sin comprobante aún
                     </div>
                   )}
+
+                  {/* Link de Seguimiento (Para enviar al cliente) */}
+                  <div className="pt-2 border-t border-dashed border-slate-100">
+                    <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Seguimiento Público</p>
+                    <div className="flex gap-2">
+                      <Input 
+                        readOnly 
+                        value={`${window.location.origin}/reserva/${res.id}`} 
+                        className="h-8 text-[10px] font-mono bg-slate-50 border-slate-100 text-slate-500"
+                      />
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-8 px-2 text-[10px] font-black uppercase"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/reserva/${res.id}`)
+                          toast.success('Link copiado', { description: 'Puedes enviarlo por WhatsApp.' })
+                        }}
+                      >
+                        Copiar
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
                  {/* Acciones */}
@@ -253,17 +296,36 @@ export default function ReservasWebPage() {
                   <div className="p-4 bg-white border-t border-slate-100 flex gap-2">
                     <Button 
                       variant="destructive" 
-                      className="flex-1 font-bold rounded-xl bg-red-50 hover:bg-red-500 hover:text-white text-red-600 border-0 shadow-none"
+                      className="flex-1 font-bold rounded-xl bg-red-50 hover:bg-red-500 hover:text-white text-red-600 border-0 shadow-none transition-all"
                       onClick={() => { setReservaSelec(res); setModalRechazar(true) }}
                     >
                       <XCircle size={16} className="mr-1.5" /> Rechazar
                     </Button>
                     <Button 
-                      className="flex-1 font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20"
+                      className="flex-1 font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 transition-all"
                       onClick={() => { setReservaSelec(res); setModalAprobar(true) }}
                     >
-                      <CheckCircle size={16} className="mr-1.5" /> Aprobar
+                      <CheckCircle size={16} className="mr-1.5" /> Confirmar Pago
                     </Button>
+                  </div>
+                )}
+
+                {res.estado === 'LISTO_PARA_RETIRAR' && (
+                  <div className="p-4 bg-white border-t border-slate-100">
+                    <Button 
+                      className="w-full font-black rounded-xl bg-slate-900 hover:bg-black text-white shadow-xl shadow-slate-900/10 transition-all h-12"
+                      onClick={() => { setReservaSelec(res); setModalEntregar(true) }}
+                    >
+                      <CheckCircle size={18} className="mr-2" /> Marcar como Entregado
+                    </Button>
+                  </div>
+                )}
+
+                {res.estado === 'ENTREGADO' && (
+                  <div className="p-4 bg-slate-50 border-t border-slate-100 text-center">
+                    <span className="text-xs font-black text-emerald-600 uppercase tracking-widest flex items-center justify-center gap-2">
+                      <CheckCircle size={14} /> Ciclo de Venta Finalizado
+                    </span>
                   </div>
                 )}
               </div>
@@ -341,6 +403,71 @@ export default function ReservasWebPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal Ver Comprobante ─────────────────────────────────────────── */}
+      <Dialog open={modalVerImagen} onOpenChange={setModalVerImagen}>
+        <DialogContent className="sm:max-w-2xl rounded-3xl overflow-hidden p-0 border-0 bg-transparent shadow-none">
+          <div className="relative group">
+            <img 
+              src={getUrl(reservaSelec?.comprobanteUrl)} 
+              alt="Comprobante" 
+              className="w-full h-auto max-h-[85vh] object-contain rounded-3xl shadow-2xl"
+            />
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+               <a 
+                href={getUrl(reservaSelec?.comprobanteUrl)} 
+                target="_blank" 
+                rel="noreferrer"
+                className="bg-white/90 backdrop-blur text-slate-900 px-6 py-3 rounded-2xl font-black text-sm shadow-xl flex items-center gap-2 hover:bg-white"
+              >
+                <ExternalLink size={18} /> Abrir Original
+              </a>
+              <Button 
+                onClick={() => setModalVerImagen(false)}
+                className="bg-black/80 backdrop-blur text-white px-6 py-3 rounded-2xl font-black text-sm shadow-xl"
+              >
+                Cerrar Vista
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal Marcar Entregado ────────────────────────────────────────── */}
+      <Dialog open={modalEntregar} onOpenChange={setModalEntregar}>
+        <DialogContent className="sm:max-w-md rounded-[2rem]">
+          <DialogHeader className="pt-4">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mb-4 mx-auto">
+              <CheckCircle size={32} />
+            </div>
+            <DialogTitle className="text-2xl font-black text-center text-slate-900">¿Confirmar Entrega?</DialogTitle>
+            <DialogDescription className="text-center font-medium text-slate-500 text-balance">
+              Estás a punto de marcar el pedido <strong>#W-{reservaSelec?.id}</strong> de <strong>{reservaSelec?.nombreContacto}</strong> como entregado físicamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 my-4">
+             <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Resumen de Entrega</p>
+             <p className="font-bold text-slate-800 text-sm">{reservaSelec?.producto?.nombre}</p>
+             <p className="text-xs text-slate-500 mt-1">Asegúrate de haber verificado la identidad del cliente.</p>
+          </div>
+          <DialogFooter className="sm:flex-col gap-3 pt-2 pb-4">
+            <Button 
+              onClick={handleEntregar} 
+              disabled={enviando} 
+              className="w-full h-14 bg-slate-900 hover:bg-black text-white rounded-2xl font-black text-base shadow-xl shadow-slate-900/20"
+            >
+              {enviando ? 'Procesando...' : 'Sí, Marcar como Entregado'}
+            </Button>
+            <Button 
+              variant="ghost" 
+              onClick={() => setModalEntregar(false)} 
+              className="w-full h-12 font-bold text-slate-400 hover:text-slate-600"
+            >
+              Cancelar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

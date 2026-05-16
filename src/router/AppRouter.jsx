@@ -12,6 +12,7 @@ import LoginPage from '../pages/auth/LoginPage'
 // Public pages
 import HomePage           from '../pages/public/HomePage'
 import CatalogoPage       from '../pages/public/CatalogoPage'
+import SeguimientoReservaPage from '../pages/public/SeguimientoReservaPage'
 import ConsultaBoletaPage from '../pages/public/ConsultaBoletaPage'
 
 // Admin pages
@@ -71,6 +72,7 @@ export default function AppRouter() {
         <Route element={<PublicLayout />}>
           <Route path="/"            element={<HomePage />} />
           <Route path="/catalogo"    element={<CatalogoPage />} />
+          <Route path="/reserva/:id" element={<SeguimientoReservaPage />} />
           <Route path="/mis-boletas" element={<ConsultaBoletaPage />} />
         </Route>
 

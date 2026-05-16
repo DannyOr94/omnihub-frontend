@@ -1,4 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
+import { useLayoutEffect, useRef } from 'react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { publicApi } from '../../api/index'
 
 // Componentes modulares
@@ -67,8 +70,45 @@ export default function HomePage() {
     refetchInterval: 30000,
   })
 
+  useLayoutEffect(() => {
+    // Refrescar triggers cuando los datos de productos o config cambian
+    // o simplemente al montar para asegurar que las alturas son correctas
+    const timer = setTimeout(() => {
+      ScrollTrigger.refresh()
+    }, 1000) // Damos un segundo para que las imágenes carguen
+
+    return () => clearTimeout(timer)
+  }, [productos, configData])
+
+  const contentRef = useRef(null)
+
+  useLayoutEffect(() => {
+    const ctx = gsap.context(() => {
+      // Animación de entrada para el contenedor blanco
+      gsap.from(contentRef.current, {
+        y: 100,
+        opacity: 0,
+        duration: 1.5,
+        ease: 'power4.out',
+        scrollTrigger: {
+          trigger: contentRef.current,
+          start: 'top 95%',
+        }
+      })
+    })
+
+    const timer = setTimeout(() => {
+      ScrollTrigger.refresh()
+    }, 1000)
+
+    return () => {
+      ctx.revert()
+      clearTimeout(timer)
+    }
+  }, [productos, configData])
+
   return (
-    <div className="bg-[#fcfcfd] min-h-screen selection:bg-blue-500/30">
+    <div className="bg-[#020617] min-h-screen selection:bg-blue-500/30 selection:text-white">
       
       {/* Hero: Moda + Tecnología */}
       <HomeHero config={config} />
@@ -79,8 +119,20 @@ export default function HomePage() {
       {/* Secciones de Negocio: Dualismo Premium */}
       <BusinessSections />
 
-      {/* Catálogo Destacado */}
-      <ProductsHighlight productos={productos} cargando={cargando} />
+      <div 
+        ref={contentRef}
+        className="bg-white rounded-t-[4rem] lg:rounded-t-[6rem] -mt-24 relative z-30 shadow-[0_-50px_100px_rgba(0,0,0,0.4)]"
+      >
+        {/* Catálogo Destacado */}
+        <ProductsHighlight productos={productos} cargando={cargando} />
+
+        {/* Nuestra Historia */}
+        <NosotrosSection 
+          titulo={config.nosotrosTitulo}
+          texto1={config.nosotrosTexto1}
+          texto2={config.nosotrosTexto2}
+        />
+      </div>
 
       {/* Testimonios con opción de agregar */}
       <TestimonialsSection 
@@ -88,15 +140,10 @@ export default function HomePage() {
         visible={config.mostrarTestimonios ?? true}
       />
 
-      {/* Nuestra Historia */}
-      <NosotrosSection 
-        titulo={config.nosotrosTitulo}
-        texto1={config.nosotrosTexto1}
-        texto2={config.nosotrosTexto2}
-      />
-
-      {/* FAQ */}
-      <FAQSection faqs={config.faqs} />
+      <div className="bg-white rounded-[4rem] my-20 relative z-30">
+        {/* FAQ */}
+        <FAQSection faqs={config.faqs} />
+      </div>
 
       {/* Contacto & Ubicación */}
       <ContactSection 

@@ -67,6 +67,7 @@ export const apartadosApi = {
   listarTemporales: (params) => api.get('/apartados/temporales/listar', { params }),
   confirmarTemporal: (id)    => api.patch(`/apartados/temporales/${id}/confirmar`),
   aprobarTemporal:  (id)     => api.patch(`/apartados/temporales/${id}/aprobar`),
+  entregarTemporal: (id)     => api.patch(`/apartados/temporales/${id}/entregar`),
   rechazarTemporal: (id, motivo) => api.patch(`/apartados/temporales/${id}/rechazar`, { motivo }),
 }
 
@@ -112,6 +113,7 @@ export const publicApi = {
   categorias:   ()       => api.get('/public/categorias'),
   boleta:       (datos)  => api.post('/public/boleta',        datos),
   reservarTemporal: (datos) => api.post('/public/reservar-temporal', datos),
+  obtenerReserva: (id) => api.get(`/public/reservar-temporal/${id}`),
   subirComprobanteTemporal: (id, formData) => api.post(`/public/reservar-temporal/${id}/comprobante`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   homeConfig:   ()       => api.get('/public/home-config'),
   submitTestimony: (datos) => api.post('/testimonios', datos),

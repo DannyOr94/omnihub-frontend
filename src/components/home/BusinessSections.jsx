@@ -20,7 +20,7 @@ function BusinessCard({ icono: Icono, image, colorTag, tag, titulo, descripcion,
           alt={titulo} 
           className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent opacity-90 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
       </div>
 
       <div className="relative z-10 w-full">
@@ -72,11 +72,23 @@ export default function BusinessSections() {
         ease: 'power3.out',
         scrollTrigger: {
           trigger: containerRef.current,
-          start: 'top 80%'
+          start: 'top 85%', // Un poco más abajo para dar tiempo
+          toggleActions: 'play none none none'
         }
       })
     }, containerRef)
-    return () => ctx.revert()
+
+    // Forzar un refresh de ScrollTrigger después de que todo cargue
+    const timer = setTimeout(() => {
+      import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
+        ScrollTrigger.refresh()
+      })
+    }, 500)
+
+    return () => {
+      ctx.revert()
+      clearTimeout(timer)
+    }
   }, [])
 
   return (
@@ -92,7 +104,7 @@ export default function BusinessSections() {
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-16">
           <BusinessCard
             icono={Shirt}
-            image="/fashion-hero.png"
+            image="/fashion-hero-new.png"
             colorTag="text-rose-400"
             tag="Moda Josefina"
             titulo="Tienda Doña Tere"
@@ -102,7 +114,7 @@ export default function BusinessSections() {
           />
           <BusinessCard
             icono={Cpu}
-            image="/tech-hero.png"
+            image="/tech-hero-new.png"
             colorTag="text-blue-400"
             tag="Tech Solutions"
             titulo="K.M.A. Conexiones"

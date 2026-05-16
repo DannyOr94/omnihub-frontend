@@ -2,15 +2,16 @@ import { MapPin, Clock, Phone, MessageCircle } from 'lucide-react'
 
 export default function ContactSection({ horario, direccion, whatsapp }) {
   return (
-    <section className="py-24 bg-slate-950 text-white overflow-hidden relative">
-      {/* Elementos decorativos */}
-      <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #334155 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+    <section className="py-40 bg-[#020617] text-white overflow-hidden relative">
+      {/* Premium Background Decor */}
+      <div className="absolute top-0 left-0 w-full h-full bg-noise opacity-[0.05] pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
       
-      <div className="max-w-7xl mx-auto px-4 relative z-10">
-        <div className="text-center mb-20">
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-400 mb-4 block">Ubicación & Contacto</span>
-          <h2 className="text-4xl md:text-6xl font-black tracking-tight">Ven a visitarnos</h2>
-          <p className="text-slate-400 mt-6 text-lg font-medium max-w-xl mx-auto">Estamos ubicados en el corazón de San José, listos para brindarte la mejor atención.</p>
+      <div className="max-w-7xl mx-auto px-6 relative z-10">
+        <div className="text-center mb-24">
+          <span className="text-[10px] font-black uppercase tracking-[0.5em] text-blue-400 mb-6 block drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]">Ubicación & Contacto</span>
+          <h2 className="text-5xl md:text-8xl font-black tracking-tighter leading-[0.9]">Ven a visitarnos</h2>
+          <p className="text-slate-400 mt-8 text-xl font-medium max-w-2xl mx-auto leading-relaxed">Estamos ubicados en el corazón de San José, fusionando la calidez de la moda tradicional con la precisión tecnológica.</p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">

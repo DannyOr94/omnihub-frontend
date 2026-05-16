@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { 
   Search, Filter, ShoppingBag, Clock, Check, 
   Upload, X, Package, ChevronRight, Info, Star,
-  TrendingUp, Zap, ChevronLeft
+  TrendingUp, Zap, ChevronLeft, ArrowRight
 } from 'lucide-react'
 import { publicApi } from '../../api/index'
 import { formatCurrency, cn } from '../../utils'
-import TestimonialsSection from '../../components/home/TestimonialsSection'
+
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Badge } from '../../components/ui/badge'
@@ -93,15 +93,7 @@ function ProductoCard({ producto, onReservar }) {
             {producto.nombre}
           </h3>
 
-          {/* Gatillo: Estrellas de Confianza */}
-          <div className="flex items-center gap-1.5 mb-3">
-            <div className="flex gap-0.5">
-              {[1, 2, 3, 4, 5].map(n => (
-                <Star key={n} size={10} className="fill-amber-400 text-amber-400" />
-              ))}
-            </div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">(4.9/5 • 12 reseñas)</span>
-          </div>
+
           
           {/* Variantes Selector */}
           {tieneVariantes && (
@@ -191,18 +183,19 @@ function SkeletonProductCard() {
 
 // ─── Modal Reserva ────────────────────────────────────────────────────────────
 function ModalReserva({ abierto, setAbierto, producto, onSuccess, cuentasPago = [] }) {
-  const [step, setStep] = useState(1) // 1: Datos, 2: Pago, 3: Comprobante, 4: Éxito
+  const [step, setStep] = useState(1) // 1: Datos, 2: Solicitado (Éxito inicial), 3: Comprobante (Legacy/Directo), 4: Éxito Final
   const [reservaId, setReservaId] = useState(null)
   const [formData, setFormData] = useState({ nombreContacto: '', telefonoContacto: '', correoContacto: '' })
   const [archivo, setArchivo] = useState(null)
   
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   const reservarMutation = useMutation({
     mutationFn: (datos) => publicApi.reservarTemporal(datos),
     onSuccess: (res) => {
       setReservaId(res.data.data.id)
-      setStep(2) // Ahora el paso 2 es "Solicitud Recibida / Esperando Validación"
+      setStep(2)
       toast.success('¡Solicitud enviada!', { description: 'Revisaremos la disponibilidad pronto.' })
       queryClient.invalidateQueries({ queryKey: ['catalogo'] })
     },
@@ -233,10 +226,14 @@ function ModalReserva({ abierto, setAbierto, producto, onSuccess, cuentasPago = 
     }, 300)
   }
 
+  const handleIrASeguimiento = () => {
+    handleClose()
+    navigate(`/reserva/${reservaId}`)
+  }
+
   const handleReservarSubmit = (e) => {
     e.preventDefault()
     
-    // Validaciones extra
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     const telRegex = /^[0-9\s+]{8,15}$/
 
@@ -266,149 +263,321 @@ function ModalReserva({ abierto, setAbierto, producto, onSuccess, cuentasPago = 
 
   if (!producto) return null
 
-  // Usamos las cuentas que vienen de la DB o un fallback si no hay ninguna
-  const cuentasAMostrar = cuentasPago.length > 0 ? cuentasPago : [
-    { banco: 'SINPE Móvil', titular: 'Consultar al comercio', numero: 'No configurado' }
-  ]
-
   return (
     <Dialog open={abierto} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-md rounded-3xl p-0 overflow-hidden border-0 shadow-2xl">
+      <DialogContent className="sm:max-w-md rounded-[2.5rem] p-0 overflow-hidden border-0 shadow-2xl bg-white">
         
         {/* Banner dinámico */}
         <div className={cn(
-          "p-8 text-center text-white relative transition-all duration-700",
-          step === 1 && "bg-gradient-to-br from-blue-600 to-indigo-700",
-          step === 2 && "bg-gradient-to-br from-indigo-600 to-purple-700",
-          step === 3 && "bg-gradient-to-br from-amber-500 to-orange-600",
-          step === 4 && "bg-gradient-to-br from-emerald-500 to-teal-600"
+          "p-10 text-center text-white relative transition-all duration-700",
+          step === 1 && "bg-slate-900",
+          step === 2 && "bg-blue-600",
+          step === 3 && "bg-amber-500",
+          step === 4 && "bg-emerald-500"
         )}>
-          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md border border-white/30">
-            {step === 4 ? <Check size={32} /> : <Clock size={32} />}
+          {/* Círculo decorativo */}
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="w-20 h-20 bg-white/20 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-md border border-white/30 shadow-inner">
+            {step === 4 ? <Check size={36} /> : step === 2 ? <Check size={36} /> : <ShoppingBag size={36} />}
           </div>
-          <DialogTitle className="text-2xl font-black mb-2 text-white">
+          <DialogTitle className="text-3xl font-black mb-2 text-white">
             {step === 1 && 'Apartar Producto'}
-            {step === 2 && 'Solicitud Recibida'}
+            {step === 2 && '¡Solicitud Recibida!'}
             {step === 3 && 'Enviar Comprobante'}
             {step === 4 && '¡Todo Listo!'}
           </DialogTitle>
-          <DialogDescription className="font-medium text-white/80">
-            {step === 1 && 'Asegura el inventario por 15 minutos.'}
-            {step === 2 && 'Estamos validando la disponibilidad física.'}
+          <DialogDescription className="font-medium text-white/80 text-base">
+            {step === 1 && 'Ingresa tus datos para procesar el apartado.'}
+            {step === 2 && 'Estamos verificando el stock para ti.'}
             {step === 3 && 'Adjunta la captura de pantalla del pago.'}
-            {step === 4 && 'Tu reserva ha sido enviada a revisión.'}
+            {step === 4 && 'Tu comprobante está en revisión.'}
           </DialogDescription>
         </div>
 
-        <div className="p-6">
+        <div className="p-8">
           {step === 1 && (
-            <form onSubmit={handleReservarSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nombre Completo</Label>
+            <form onSubmit={handleReservarSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Nombre Completo</Label>
                 <Input 
                   required
                   placeholder="Ej. Juan Pérez"
-                  className="h-12 rounded-xl bg-slate-50 border-slate-200"
+                  className="h-14 rounded-2xl bg-slate-50 border-slate-200 focus:ring-blue-500 focus:border-blue-500 font-bold"
                   value={formData.nombreContacto}
                   onChange={e => setFormData({...formData, nombreContacto: e.target.value})}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">WhatsApp</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">WhatsApp</Label>
                   <Input 
                     required
                     placeholder="8888-8888"
-                    className="h-12 rounded-xl bg-slate-50 border-slate-200"
+                    className="h-14 rounded-2xl bg-slate-50 border-slate-200 font-bold"
                     value={formData.telefonoContacto}
                     onChange={e => setFormData({...formData, telefonoContacto: e.target.value})}
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Correo</Label>
+                <div className="space-y-2">
+                  <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Correo</Label>
                   <Input 
                     required
                     type="email"
                     placeholder="tu@email.com"
-                    className="h-12 rounded-xl bg-slate-50 border-slate-200"
+                    className="h-14 rounded-2xl bg-slate-50 border-slate-200 font-bold"
                     value={formData.correoContacto}
                     onChange={e => setFormData({...formData, correoContacto: e.target.value})}
                   />
                 </div>
               </div>
-              <Button type="submit" className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black shadow-lg">
-                {reservarMutation.isPending ? 'Procesando...' : 'Asegurar Inventario'}
+              <Button type="submit" className="w-full h-16 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-lg shadow-xl shadow-slate-900/20 transition-all mt-4">
+                {reservarMutation.isPending ? 'Procesando...' : 'Confirmar Solicitud'}
               </Button>
             </form>
           )}
 
           {step === 2 && (
-            <div className="space-y-6 text-center py-4">
-              <div className="bg-blue-50 border border-blue-100 p-6 rounded-3xl">
-                <p className="text-sm font-bold text-blue-900 mb-2">¡Gracias por tu interés!</p>
-                <p className="text-xs text-blue-700 leading-relaxed">
-                  Hemos recibido tu solicitud para el apartado de <strong>{producto.nombre}</strong>. 
-                  Para garantizar que el producto esté físicamente disponible, un administrador revisará tu pedido en los próximos minutos.
-                </p>
-              </div>
-              
+            <div className="space-y-8 text-center py-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="space-y-4">
-                <div className="flex items-start gap-3 text-left p-3 bg-slate-50 rounded-2xl">
-                  <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
-                    <Info size={16} className="text-blue-600" />
+                <div className="p-6 bg-blue-50 rounded-[2rem] border border-blue-100 relative group overflow-hidden">
+                   <div className="relative z-10">
+                    <p className="text-sm font-black text-blue-900 mb-2">¡Casi es tuyo!</p>
+                    <p className="text-xs text-blue-700 leading-relaxed font-medium">
+                      Un administrador está verificando la disponibilidad física de <strong>{producto.nombre}</strong>. 
+                      Te avisaremos por correo y WhatsApp apenas esté confirmado.
+                    </p>
+                   </div>
+                   <div className="absolute -bottom-4 -right-4 w-20 h-20 bg-blue-200/30 rounded-full blur-2xl group-hover:scale-150 transition-transform" />
+                </div>
+
+                <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 text-left">
+                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shrink-0 shadow-sm border border-slate-100">
+                    <Clock size={20} className="text-blue-600" />
                   </div>
-                  <p className="text-[11px] text-slate-500 font-medium">
-                    Te enviaremos un <strong>correo electrónico</strong> con los datos de pago (SINPE/Transferencia) una vez confirmada la disponibilidad.
-                  </p>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Siguiente Paso</p>
+                    <p className="text-xs font-bold text-slate-700">Recibirás un link de pago con las cuentas bancarias.</p>
+                  </div>
                 </div>
               </div>
 
-              <Button onClick={handleClose} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black shadow-lg">
-                Entendido, esperaré el correo
-              </Button>
+              <div className="space-y-3">
+                <Button 
+                  onClick={handleIrASeguimiento} 
+                  className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-500/20 flex items-center justify-center gap-2"
+                >
+                  Seguir mi Reserva <ArrowRight size={20} />
+                </Button>
+                <Button 
+                  variant="ghost"
+                  onClick={handleClose} 
+                  className="w-full h-12 text-slate-400 hover:text-slate-900 font-bold"
+                >
+                  Cerrar y volver al catálogo
+                </Button>
+              </div>
               
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                ID de Solicitud: #{reservaId}
+              <p className="text-[10px] text-slate-300 font-black uppercase tracking-[0.2em]">
+                Ticket ID: #{reservaId}
               </p>
             </div>
           )}
 
-          {step === 3 && (
-            <form onSubmit={handleSubirSubmit} className="space-y-6">
-              <label htmlFor="comprobante" className="flex flex-col items-center justify-center gap-3 p-10 border-2 border-dashed rounded-3xl cursor-pointer hover:bg-orange-50 transition-all border-slate-200 bg-slate-50">
-                <Upload size={24} className="text-slate-400" />
-                <div className="text-center">
-                  <p className="font-bold text-slate-900">{archivo ? 'Imagen lista' : 'Sube tu comprobante'}</p>
-                  <p className="text-xs text-slate-500">{archivo ? archivo.name : 'Formatos JPG, PNG'}</p>
-                </div>
-                <input type="file" id="comprobante" className="hidden" accept="image/*" onChange={e => setArchivo(e.target.files[0])} />
-              </label>
-              <Button type="submit" className="w-full h-14 bg-orange-600 text-white rounded-2xl font-black shadow-lg">
-                {subirComprobanteMutation.isPending ? 'Enviando...' : 'Confirmar mi Apartado'}
-              </Button>
-              <button type="button" onClick={() => setStep(2)} className="w-full text-xs font-bold text-slate-400">← Volver a cuentas</button>
-            </form>
-          )}
-
           {step === 4 && (
-            <div className="space-y-6 text-center animate-in fade-in zoom-in duration-500">
-              <div className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100">
-                <h4 className="text-lg font-black text-emerald-900">¡Recibido!</h4>
-                <p className="text-sm text-emerald-700 mt-1">
-                  Tu reserva <strong>#W-{reservaId}</strong> ha sido registrada.
-                  Te enviamos un correo a <strong>{formData.correoContacto}</strong>.
+            <div className="space-y-8 text-center py-2 animate-in fade-in zoom-in duration-500">
+              <div className="p-8 bg-emerald-50 rounded-[2.5rem] border border-emerald-100">
+                <div className="w-16 h-16 bg-emerald-500 text-white rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/20">
+                  <Check size={32} />
+                </div>
+                <h4 className="text-xl font-black text-emerald-900 mb-2">¡Recibido con éxito!</h4>
+                <p className="text-sm text-emerald-700 font-medium leading-relaxed">
+                  Tu comprobante ha sido enviado. Estamos validando el ingreso en nuestra cuenta bancaria.
                 </p>
               </div>
-              <div className="p-4 border border-slate-100 rounded-2xl space-y-2 text-sm text-slate-800">
-                <div className="flex justify-between"><span className="text-slate-500">Cliente:</span><span className="font-bold">{formData.nombreContacto}</span></div>
-                <div className="flex justify-between text-blue-600 font-bold"><span>Total:</span><span>{formatCurrency(producto.precio)}</span></div>
-              </div>
-              <Button onClick={handleClose} className="w-full h-12 bg-slate-900 text-white rounded-xl font-bold">Entendido</Button>
+              
+              <Button 
+                onClick={handleIrASeguimiento} 
+                className="w-full h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-lg shadow-xl shadow-emerald-500/20"
+              >
+                Ver Estado Actual
+              </Button>
             </div>
           )}
         </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ─── Componente de Filtros Reusable ──────────────────────────────────────────
+function FiltrosContent({ 
+  categorias, 
+  tipoFiltro, 
+  setSearchParams, 
+  categoriaId, 
+  setCategoriaId, 
+  soloDisponibles, 
+  setSoloDisponibles,
+  totalResultados,
+  onClose
+}) {
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header (Solo Mobile) */}
+      <div className="lg:hidden pt-4 pb-2 px-8 flex flex-col items-center">
+        <div className="w-12 h-1.5 bg-slate-200 rounded-full mb-6" />
+        <div className="w-full flex items-center justify-between">
+          <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
+            <Filter size={24} className="text-blue-600" /> Refinar
+          </h2>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className="text-blue-600 font-bold hover:bg-blue-50 rounded-xl"
+            onClick={() => {
+              setCategoriaId('')
+              setSearchParams({ tipo: '' })
+              setSoloDisponibles(false)
+            }}
+          >
+            Limpiar
+          </Button>
+        </div>
+      </div>
+
+      {/* Desktop Header */}
+      <div className="hidden lg:block mb-8">
+        <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+          <Filter size={20} className="text-blue-600" /> Refinar búsqueda
+        </h2>
+      </div>
+
+      {/* Scrollable Area */}
+      <div className="flex-1 overflow-y-auto px-0 lg:px-0 py-6 lg:py-0 space-y-10 custom-scrollbar pr-2">
+        
+        {/* 1. Departamento */}
+        <div className="space-y-4">
+          <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Departamento</Label>
+          <div className="grid grid-cols-3 lg:grid-cols-1 gap-3">
+            {[
+              { val: '', label: 'Todo', icon: Package },
+              { val: 'FASHION', label: 'Moda', icon: ShoppingBag },
+              { val: 'TECH', label: 'Tecnología', icon: Zap }
+            ].map(t => {
+              const active = tipoFiltro === t.val
+              return (
+                <button
+                  key={t.val}
+                  onClick={() => {
+                    setSearchParams({ tipo: t.val })
+                    setCategoriaId('')
+                  }}
+                  className={cn(
+                    "flex lg:flex-row flex-col items-center justify-center lg:justify-start gap-3 p-4 rounded-2xl border-2 transition-all duration-300",
+                    active 
+                      ? "border-blue-600 bg-blue-50 text-blue-600 shadow-md lg:shadow-none" 
+                      : "border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200"
+                  )}
+                >
+                  <t.icon size={18} className={active ? 'text-blue-600' : 'text-slate-400'} />
+                  <span className="text-[10px] lg:text-xs font-black uppercase tracking-tight">{t.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* 2. Categorías Dinámicas */}
+        <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center justify-between">
+            <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Categorías</Label>
+          </div>
+          
+          <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
+            <button
+              onClick={() => setCategoriaId('')}
+              className={cn(
+                "flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left group",
+                !categoriaId ? "border-blue-600 bg-blue-50" : "border-slate-100 hover:border-slate-200"
+              )}
+            >
+              <div className={cn(
+                "w-4 h-4 rounded border-2 flex items-center justify-center transition-all",
+                !categoriaId ? "bg-blue-600 border-blue-600" : "border-slate-200"
+              )}>
+                {!categoriaId && <Check size={10} className="text-white" strokeWidth={4} />}
+              </div>
+              <span className={cn("text-xs font-bold", !categoriaId ? "text-blue-900" : "text-slate-600")}>Todas</span>
+            </button>
+
+            {categorias
+              .filter(c => !tipoFiltro || c.tipoProducto === tipoFiltro)
+              .filter((val, idx, self) => idx === self.findIndex(t => t.nombre === val.nombre))
+              .map(c => {
+                const active = categoriaId === String(c.id)
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => setCategoriaId(active ? '' : String(c.id))}
+                    className={cn(
+                      "flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left group",
+                      active ? "border-blue-600 bg-blue-50" : "border-slate-100 hover:border-slate-200"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-4 h-4 rounded border-2 flex items-center justify-center transition-all",
+                      active ? "bg-blue-600 border-blue-600" : "border-slate-200"
+                    )}>
+                      {active && <Check size={10} className="text-white" strokeWidth={4} />}
+                    </div>
+                    <span className={cn("text-xs font-bold truncate", active ? "text-blue-900" : "text-slate-600")}>
+                      {c.nombre}
+                    </span>
+                  </button>
+                )
+            })}
+          </div>
+        </div>
+
+        {/* 3. Disponibilidad */}
+        <div className="space-y-4">
+          <Label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Inventario</Label>
+          <div 
+            onClick={() => setSoloDisponibles(!soloDisponibles)}
+            className={cn(
+              "flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all",
+              soloDisponibles ? "border-emerald-500 bg-emerald-50" : "border-slate-100 bg-slate-50 hover:border-slate-200"
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
+                soloDisponibles ? "bg-emerald-500 text-white" : "bg-white text-slate-400 border border-slate-200"
+              )}>
+                <TrendingUp size={18} />
+              </div>
+              <Label className={cn("text-xs font-black", soloDisponibles ? "text-emerald-900" : "text-slate-900")}>Solo Disponibles</Label>
+            </div>
+            <Switch 
+              checked={soloDisponibles} 
+              onCheckedChange={setSoloDisponibles}
+              className="data-[state=checked]:bg-emerald-500 scale-75"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Footer */}
+      <div className="lg:hidden p-8 bg-white border-t border-slate-100 shadow-[0_-20px_40px_rgba(0,0,0,0.02)]">
+        <Button 
+          className="w-full h-16 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-lg shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 transition-all"
+          onClick={onClose}
+        >
+          Ver {totalResultados} Resultados
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -432,7 +601,6 @@ export default function CatalogoPage() {
     return () => clearTimeout(timer)
   }, [busqueda])
 
-  // Cerrar sugerencias al hacer clic fuera
   useEffect(() => {
     const handleClick = () => setSugerenciasAbiertas(false)
     window.addEventListener('click', handleClick)
@@ -475,7 +643,7 @@ export default function CatalogoPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-8">
       <ModalReserva 
         abierto={modalAbierto} 
         setAbierto={setModalAbierto} 
@@ -484,175 +652,142 @@ export default function CatalogoPage() {
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ['catalogo'] })}
       />
 
-      <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Catálogo</h1>
-        <p className="text-slate-500 mt-2 font-medium">Encuentra moda y tecnología en un solo lugar.</p>
-      </div>
-
-      <div className="flex gap-3">
-        <div className="relative flex-1 group" onClick={e => e.stopPropagation()}>
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <Input
-            placeholder="Buscar productos..."
-            value={busqueda}
-            onChange={e => setBusqueda(e.target.value)}
-            onFocus={() => setSugerenciasAbiertas(true)}
-            className="pl-12 h-14 bg-white border-2 border-slate-200 rounded-2xl focus:border-blue-500 transition-all"
+      <div className="flex flex-col lg:flex-row gap-12">
+        
+        {/* Sidebar: Filtros Escritorio */}
+        <aside className="hidden lg:block w-72 shrink-0 h-fit sticky top-24">
+          <div className="mb-8">
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Catálogo</h1>
+            <p className="text-slate-500 mt-2 font-medium text-sm">Encuentra moda y tecnología Josefina.</p>
+          </div>
+          <FiltrosContent 
+            categorias={categorias}
+            tipoFiltro={tipoFiltro}
+            setSearchParams={setSearchParams}
+            categoriaId={categoriaId}
+            setCategoriaId={setCategoriaId}
+            soloDisponibles={soloDisponibles}
+            setSoloDisponibles={setSoloDisponibles}
+            totalResultados={productos.length}
           />
+        </aside>
 
-          {/* Sugerencias Predictivas */}
-          {sugerenciasAbiertas && busqueda.length >= 2 && productos.length > 0 && (
-            <div className="absolute top-16 left-0 right-0 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="p-2">
-                {productos.slice(0, 5).map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => {
-                      setBusqueda(p.nombre)
-                      setSugerenciasAbiertas(false)
-                    }}
-                    className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors text-left group/item"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0">
-                      {p.imagenUrl && <img src={p.imagenUrl} className="w-full h-full object-cover" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-900 truncate">{p.nombre}</p>
-                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">
-                        {p.marca || 'Sin Marca'} • {formatCurrency(p.precioVenta)}
-                      </p>
-                    </div>
-                    <ChevronRight size={14} className="text-slate-300 group-hover/item:text-blue-500 group-hover/item:translate-x-1 transition-all" />
-                  </button>
-                ))}
-              </div>
-              <div className="bg-slate-50 p-3 text-center border-t border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  Presiona Enter para ver todos los resultados
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Main Content */}
+        <main className="flex-1 space-y-8">
+          {/* Mobile Header */}
+          <div className="lg:hidden mb-8">
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Catálogo</h1>
+            <p className="text-slate-500 mt-2 font-medium">Moda y tecnología en un solo lugar.</p>
+          </div>
 
-        {/* Filtros: Desktop (Inline/Toggle) y Mobile (Bottom Sheet) */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button 
-              variant="outline" 
-              className={cn("h-14 px-6 rounded-2xl border-2", (categoriaId || tipoFiltro || soloDisponibles) && "border-blue-600 bg-blue-50 text-blue-600")}
-            >
-              <Filter size={18} className="mr-2" /> 
-              <span className="hidden sm:inline">Filtros</span>
-              {(categoriaId || tipoFiltro || soloDisponibles) && (
-                <Badge className="ml-2 bg-blue-600 h-5 w-5 p-0 flex items-center justify-center rounded-full">!</Badge>
+          {/* Search + Mobile Filter Button */}
+          <div className="flex gap-3">
+            <div className="relative flex-1 group" onClick={e => e.stopPropagation()}>
+              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="Buscar productos..."
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                onFocus={() => setSugerenciasAbiertas(true)}
+                className="pl-12 h-14 bg-white border-2 border-slate-200 rounded-2xl focus:border-blue-500 transition-all shadow-sm"
+              />
+
+              {/* Sugerencias Predictivas */}
+              {sugerenciasAbiertas && busqueda.length >= 2 && productos.length > 0 && (
+                <div className="absolute top-16 left-0 right-0 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="p-2">
+                    {productos.slice(0, 5).map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          setBusqueda(p.nombre)
+                          setSugerenciasAbiertas(false)
+                        }}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors text-left group/item"
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0">
+                          {p.imagenUrl && <img src={p.imagenUrl} className="w-full h-full object-cover" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-900 truncate">{p.nombre}</p>
+                          <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">
+                            {p.marca || 'Sin Marca'} • {formatCurrency(p.precioVenta)}
+                          </p>
+                        </div>
+                        <ChevronRight size={14} className="text-slate-300 group-hover/item:text-blue-500 group-hover/item:translate-x-1 transition-all" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="rounded-t-[2.5rem] h-[80vh] sm:h-auto overflow-y-auto border-t-0 bg-white">
-            <SheetHeader className="pb-6 border-b border-slate-100 mb-6">
-              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-4" />
-              <SheetTitle className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                <Filter size={24} className="text-blue-600" /> Refinar Búsqueda
-              </SheetTitle>
-            </SheetHeader>
+            </div>
 
-            <div className="space-y-8 pb-10">
-              {/* Categorías */}
-              <div className="space-y-4">
-                <Label className="text-xs font-black text-slate-400 uppercase tracking-widest">Categorías</Label>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={!categoriaId ? 'default' : 'outline'}
-                    onClick={() => setCategoriaId('')}
-                    className="rounded-xl font-bold"
-                  >
-                    Todas
-                  </Button>
-                  {categorias.map(c => (
-                    <Button
-                      key={c.id}
-                      variant={categoriaId === String(c.id) ? 'default' : 'outline'}
-                      onClick={() => setCategoriaId(String(c.id))}
-                      className="rounded-xl font-bold"
-                    >
-                      {c.nombre}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Tipos */}
-              <div className="space-y-4">
-                <Label className="text-xs font-black text-slate-400 uppercase tracking-widest">Tipo de Producto</Label>
-                <div className="flex gap-2">
-                  {[
-                    { val: '', label: 'Cualquiera' },
-                    { val: 'FASHION', label: 'Moda' },
-                    { val: 'TECH', label: 'Tecnología' }
-                  ].map(t => (
-                    <Button
-                      key={t.val}
-                      variant={tipoFiltro === t.val ? 'secondary' : 'outline'}
-                      onClick={() => setSearchParams({ tipo: t.val })}
-                      className="flex-1 rounded-xl font-bold"
-                    >
-                      {t.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Disponibilidad */}
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
-                <div className="space-y-0.5">
-                  <Label className="text-sm font-bold text-slate-900">Solo Disponibles</Label>
-                  <p className="text-xs text-slate-500">Ocultar productos agotados</p>
-                </div>
-                <Switch 
-                  checked={soloDisponibles} 
-                  onCheckedChange={setSoloDisponibles} 
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className={cn("lg:hidden h-14 px-6 rounded-2xl border-2 transition-all", (categoriaId || tipoFiltro || soloDisponibles) && "border-blue-600 bg-blue-50 text-blue-600")}
+                >
+                  <Filter size={18} className="mr-2" /> 
+                  {(categoriaId || tipoFiltro || soloDisponibles) && (
+                    <div className="ml-2 bg-blue-600 text-white text-[10px] h-5 w-5 flex items-center justify-center rounded-full font-black animate-in zoom-in">!</div>
+                  )}
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="rounded-t-[3rem] h-[85vh] overflow-hidden border-t-0 bg-white p-0">
+                <FiltrosContent 
+                  categorias={categorias}
+                  tipoFiltro={tipoFiltro}
+                  setSearchParams={setSearchParams}
+                  categoriaId={categoriaId}
+                  setCategoriaId={setCategoriaId}
+                  soloDisponibles={soloDisponibles}
+                  setSoloDisponibles={setSoloDisponibles}
+                  totalResultados={productos.length}
+                  onClose={() => {
+                    const closeBtn = document.querySelector('[data-state="open"] button.absolute.right-4.top-4')
+                    if (closeBtn) closeBtn.click()
+                  }}
                 />
-              </div>
+              </SheetContent>
+            </Sheet>
+          </div>
 
+          {/* Grid de Productos */}
+          {cargando ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[1,2,3,4,5,6].map(n => <SkeletonProductCard key={n} />)}
+            </div>
+          ) : productos.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              {productos.map(p => (
+                <ProductoCard key={p.id} producto={p} onReservar={handleIniciarReserva} />
+              ))}
+            </div>
+          ) : (
+            <div className="py-24 text-center bg-white rounded-[3rem] border border-slate-100 shadow-sm">
+              <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8">
+                <Package size={48} className="text-slate-300" strokeWidth={1} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 mb-3">No encontramos productos</h3>
+              <p className="text-slate-500 font-medium max-w-sm mx-auto leading-relaxed">
+                Prueba ajustando los filtros de búsqueda o explorando otras categorías.
+              </p>
               <Button 
-                className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-lg shadow-xl shadow-blue-500/20"
-                onClick={() => document.querySelector('[data-radix-collection-item]')?.click()} // Cierra el sheet
+                variant="link" 
+                className="mt-6 text-blue-600 font-black uppercase tracking-widest text-xs"
+                onClick={() => {
+                  setCategoriaId('')
+                  setSearchParams({ tipo: '' })
+                  setSoloDisponibles(false)
+                  setBusqueda('')
+                }}
               >
-                Ver Resultados
+                Limpiar todos los filtros
               </Button>
             </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-
-      {/* Grid de Productos */}
-      {cargando ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[1,2,3,4,5,6,7,8].map(n => <SkeletonProductCard key={n} />)}
-        </div>
-      ) : productos.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {productos.map(p => (
-            <ProductoCard key={p.id} producto={p} onReservar={handleIniciarReserva} />
-          ))}
-        </div>
-      ) : (
-        <div className="py-20 text-center bg-white rounded-3xl border border-slate-100 shadow-sm">
-          <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Package size={40} className="text-slate-300" />
-          </div>
-          <h3 className="text-xl font-bold text-slate-900 mb-2">No encontramos productos</h3>
-          <p className="text-slate-500">Prueba ajustando los filtros o la búsqueda.</p>
-        </div>
-      )}
-
-      {/* Social Proof Final: Testimonios */}
-      <div className="pt-20">
-        <TestimonialsSection 
-          testimonios={homeConfig?.testimonios || []} 
-          visible={true}
-        />
+          )}
+        </main>
       </div>
     </div>
   )
