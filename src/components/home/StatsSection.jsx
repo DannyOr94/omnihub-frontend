@@ -29,13 +29,14 @@ export default function StatsSection({ config }) {
   return (
     <section 
       ref={ref}
-      className="bg-[#020617] relative overflow-hidden py-32"
+      className="bg-[#020617] relative overflow-hidden py-40 grain"
     >
       {/* Dynamic Background Elements */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/10 via-transparent to-transparent pointer-events-none" />
+      <div className="absolute top-0 left-0 w-full h-full bg-noise opacity-[0.05] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-600/20 via-transparent to-transparent pointer-events-none" />
       
-      <div className="max-w-7xl mx-auto px-4 relative z-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 lg:gap-8">
+      <div className="max-w-[1440px] mx-auto px-6 relative z-10">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 lg:gap-12">
           <StatItem icon={Award}       target={config.statAnios}        suffix="+" label="Años de éxito"       shouldStart={inView} />
           <StatItem icon={ShieldCheck} target={config.statReparaciones} suffix="+" label="Reparaciones"        shouldStart={inView} />
           <StatItem icon={MapPin}      target={config.statTiendas}      suffix=""  label="Sedes en San José"   shouldStart={inView} />

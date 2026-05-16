@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useLayoutEffect, useRef } from 'react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { publicApi } from '../../api/index'
 
 // Componentes modulares
@@ -42,32 +45,70 @@ const DEFAULTS = {
 }
 
 export default function HomePage() {
-  const [config, setConfig] = useState(DEFAULTS)
-  const [productos, setProductos] = useState([])
-  const [cargando, setCargando] = useState(true)
+  // 1. Fetch de Configuración con Auto-Refetch (Polling cada 30s)
+  const { data: configData } = useQuery({
+    queryKey: ['homeConfig'],
+    queryFn: async () => {
+      const r = await publicApi.homeConfig()
+      return r.data?.data || {}
+    },
+    refetchInterval: 30000, // Polling automático (reemplaza el setInterval)
+    initialData: DEFAULTS,  // Evita parpadeos mientras carga
+  })
 
-  useEffect(() => {
-    // Cargar Configuración del Home
-    publicApi.homeConfig()
-      .then(r => {
-        if (r.data?.data) {
-          setConfig(prev => ({ ...prev, ...r.data.data }))
+  // Mezclamos la info de la BD con los Defaults
+  const config = { ...DEFAULTS, ...configData }
+
+  // 2. Fetch de Productos Destacados
+  const { data: productos = [], isLoading: cargando } = useQuery({
+    queryKey: ['homeProductosDestacados'],
+    queryFn: async () => {
+      const r = await publicApi.catalogo({ limit: 8 })
+      const lista = r.data?.data || []
+      return lista.filter(p => p.disponible).slice(0, 4)
+    },
+    refetchInterval: 30000,
+  })
+
+  useLayoutEffect(() => {
+    // Refrescar triggers cuando los datos de productos o config cambian
+    // o simplemente al montar para asegurar que las alturas son correctas
+    const timer = setTimeout(() => {
+      ScrollTrigger.refresh()
+    }, 1000) // Damos un segundo para que las imágenes carguen
+
+    return () => clearTimeout(timer)
+  }, [productos, configData])
+
+  const contentRef = useRef(null)
+
+  useLayoutEffect(() => {
+    const ctx = gsap.context(() => {
+      // Animación de entrada para el contenedor blanco
+      gsap.from(contentRef.current, {
+        y: 100,
+        opacity: 0,
+        duration: 1.5,
+        ease: 'power4.out',
+        scrollTrigger: {
+          trigger: contentRef.current,
+          start: 'top 95%',
         }
       })
-      .catch(() => { /* Fallback a DEFAULTS */ })
+    })
 
-    // Cargar Productos Destacados
-    publicApi.catalogo({ limit: 8 })
-      .then(r => {
-        const lista = r.data.data ?? []
-        setProductos(lista.filter(p => p.disponible).slice(0, 4))
-      })
-      .catch(() => setProductos([]))
-      .finally(() => setCargando(false))
-  }, [])
+    const timer = setTimeout(() => {
+      ScrollTrigger.refresh()
+    }, 1000)
+
+    return () => {
+      ctx.revert()
+      clearTimeout(timer)
+    }
+  }, [productos, configData])
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-[#020617] min-h-screen selection:bg-blue-500/30 selection:text-white">
       
       {/* Hero: Moda + Tecnología */}
       <HomeHero config={config} />
@@ -78,8 +119,20 @@ export default function HomePage() {
       {/* Secciones de Negocio: Dualismo Premium */}
       <BusinessSections />
 
-      {/* Catálogo Destacado */}
-      <ProductsHighlight productos={productos} cargando={cargando} />
+      <div 
+        ref={contentRef}
+        className="bg-white rounded-t-[4rem] lg:rounded-t-[6rem] -mt-24 relative z-30 shadow-[0_-50px_100px_rgba(0,0,0,0.4)]"
+      >
+        {/* Catálogo Destacado */}
+        <ProductsHighlight productos={productos} cargando={cargando} />
+
+        {/* Nuestra Historia */}
+        <NosotrosSection 
+          titulo={config.nosotrosTitulo}
+          texto1={config.nosotrosTexto1}
+          texto2={config.nosotrosTexto2}
+        />
+      </div>
 
       {/* Testimonios con opción de agregar */}
       <TestimonialsSection 
@@ -87,15 +140,10 @@ export default function HomePage() {
         visible={config.mostrarTestimonios ?? true}
       />
 
-      {/* Nuestra Historia */}
-      <NosotrosSection 
-        titulo={config.nosotrosTitulo}
-        texto1={config.nosotrosTexto1}
-        texto2={config.nosotrosTexto2}
-      />
-
-      {/* FAQ */}
-      <FAQSection faqs={config.faqs} />
+      <div className="bg-white rounded-[4rem] my-20 relative z-30">
+        {/* FAQ */}
+        <FAQSection faqs={config.faqs} />
+      </div>
 
       {/* Contacto & Ubicación */}
       <ContactSection 

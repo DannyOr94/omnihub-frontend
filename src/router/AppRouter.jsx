@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import ScrollToTop from '../components/shared/ScrollToTop'
 
 // Layouts
 import AdminLayout  from '../layouts/AdminLayout'
@@ -11,6 +12,7 @@ import LoginPage from '../pages/auth/LoginPage'
 // Public pages
 import HomePage           from '../pages/public/HomePage'
 import CatalogoPage       from '../pages/public/CatalogoPage'
+import SeguimientoReservaPage from '../pages/public/SeguimientoReservaPage'
 import ConsultaBoletaPage from '../pages/public/ConsultaBoletaPage'
 
 // Admin pages
@@ -21,6 +23,7 @@ import ProductosPage   from '../pages/admin/ProductosPage'
 import InventarioPage  from '../pages/admin/InventarioPage'
 import ClientesPage    from '../pages/admin/ClientesPage'
 import ApartadosPage   from '../pages/admin/ApartadosPage'
+import ReservasWebPage from '../pages/admin/ReservasWebPage'
 import PedidosPage     from '../pages/admin/PedidosPage'
 import BoletasPage     from '../pages/admin/BoletasPage'
 import ReportesPage    from '../pages/admin/ReportesPage'
@@ -62,12 +65,14 @@ function RequiereRol({ roles }) {
 export default function AppRouter() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
 
         {/* ── Portal público ───────────────────────────────────────────────── */}
         <Route element={<PublicLayout />}>
           <Route path="/"            element={<HomePage />} />
           <Route path="/catalogo"    element={<CatalogoPage />} />
+          <Route path="/reserva/:id" element={<SeguimientoReservaPage />} />
           <Route path="/mis-boletas" element={<ConsultaBoletaPage />} />
         </Route>
 
@@ -90,6 +95,7 @@ export default function AppRouter() {
             <Route element={<RequiereRol roles={['ADMINISTRADOR', 'VENDEDOR']} />}>
               <Route path="/admin/clientes"  element={<ClientesPage />} />
               <Route path="/admin/apartados" element={<ApartadosPage />} />
+              <Route path="/admin/reservas-web" element={<ReservasWebPage />} />
               <Route path="/admin/pedidos"   element={<PedidosPage />} />
             </Route>
 
