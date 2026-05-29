@@ -44,37 +44,8 @@ export default function TestimonialsSection({ testimonios = [], visible }) {
     return () => clearInterval(interval)
   }, [listaTestimonios])
 
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      // 1. Animación premium del Header (stagger)
-      gsap.from('.testimonial-header > *', {
-        opacity: 0,
-        y: 30,
-        stagger: 0.15,
-        duration: 1,
-        ease: 'power3.out',
-        scrollTrigger: {
-          trigger: containerRef.current,
-          start: 'top 80%'
-        }
-      })
-
-      // 2. Animación fluida de las tarjetas con escala
-      gsap.from('.testimonial-card', {
-        opacity: 0,
-        y: 50,
-        scale: 0.95,
-        stagger: 0.2,
-        duration: 1.2,
-        ease: 'back.out(1.2)', // Efecto rebote sutil premium
-        scrollTrigger: {
-          trigger: '.testimonial-grid',
-          start: 'top 85%'
-        }
-      })
-    }, containerRef)
-    return () => ctx.revert()
-  }, [])
+  // Se eliminaron las animaciones GSAP que ocultaban los elementos (opacity: 0)
+  // para evitar espacios en blanco si ScrollTrigger falla.
 
   if (!visible) return null
 

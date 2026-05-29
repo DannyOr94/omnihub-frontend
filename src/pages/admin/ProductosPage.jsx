@@ -21,7 +21,7 @@ import {
   Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue,
 } from '../../components/ui/select'
-import { formatCurrency, formatDate } from '../../utils'
+import { formatCurrency, formatDate, getImagenUrl } from '../../utils'
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 const prodSchema = z.object({
@@ -143,7 +143,7 @@ export default function ProductosPage() {
 
   function abrirEditar(p) {
     setEditandoProd(p)
-    setImagenProd(null); setPreviewProd(p.imagenUrl ? `http://localhost:3000${p.imagenUrl}` : null);
+    setImagenProd(null); setPreviewProd(p.imagenUrl ? getImagenUrl(p.imagenUrl) : null);
     formProd.reset({
       nombre: p.nombre, descripcion: p.descripcion ?? '', tipoProducto: p.tipoProducto,
       categoriaId: p.categoriaId, marca: p.marca ?? '', skuBase: p.skuBase ?? '',
@@ -199,7 +199,7 @@ export default function ProductosPage() {
 
   function abrirEditarVariante(v) {
     setEditandoVar(v)
-    setImagenVar(null); setPreviewVar(v.imagenUrl ? `http://localhost:3000${v.imagenUrl}` : null);
+    setImagenVar(null); setPreviewVar(v.imagenUrl ? getImagenUrl(v.imagenUrl) : null);
     formVar.reset({ talla: v.talla ?? '', color: v.color ?? '', sku: v.sku,
       codigoBarras: v.codigoBarras ?? '', precioVenta: Number(v.precioVenta),
       precioCompra: v.precioCompra ? Number(v.precioCompra) : '' })
@@ -276,7 +276,7 @@ export default function ProductosPage() {
                   className={`w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors ${seleccion?.id===p.id?'bg-blue-50 border-l-2 border-blue-500':''} ${!p.activo?'opacity-50':''}`}>
                   <div className="flex items-start gap-3">
                     {p.imagenUrl ? (
-                      <img src={`http://localhost:3000${p.imagenUrl}`} className="w-10 h-10 object-cover rounded-md border shrink-0" alt="" />
+                      <img src={getImagenUrl(p.imagenUrl)} className="w-10 h-10 object-cover rounded-md border shrink-0" alt="" />
                     ) : (
                       <div className="w-10 h-10 bg-slate-100 rounded-md border flex items-center justify-center text-slate-400 shrink-0">
                         <Package size={16}/>
@@ -313,7 +313,7 @@ export default function ProductosPage() {
             <div className="bg-white rounded-xl border p-5">
               <div className="flex items-start gap-4">
                 {seleccion.imagenUrl ? (
-                  <img src={`http://localhost:3000${seleccion.imagenUrl}`} className="w-16 h-16 object-cover rounded-xl border shrink-0" alt="" />
+                  <img src={getImagenUrl(seleccion.imagenUrl)} className="w-16 h-16 object-cover rounded-xl border shrink-0" alt="" />
                 ) : (
                   <div className="w-16 h-16 bg-slate-100 rounded-xl border flex items-center justify-center text-slate-400 shrink-0">
                     <Package size={24}/>
@@ -373,7 +373,7 @@ export default function ProductosPage() {
                       <div key={v.id} className={`flex items-center justify-between px-4 py-3 text-sm ${!v.activo?'opacity-50':''}`}>
                         <div className="flex items-center gap-3">
                           {v.imagenUrl ? (
-                            <img src={`http://localhost:3000${v.imagenUrl}`} alt={v.sku} className="w-10 h-10 object-cover rounded-md border" />
+                            <img src={getImagenUrl(v.imagenUrl)} alt={v.sku} className="w-10 h-10 object-cover rounded-md border" />
                           ) : (
                             <div className="w-10 h-10 bg-slate-100 rounded-md border flex items-center justify-center text-slate-400">
                               <Package size={16}/>

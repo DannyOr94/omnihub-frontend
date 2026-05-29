@@ -8,7 +8,7 @@ import {
   Info, Package, ArrowRight, ShieldCheck
 } from 'lucide-react'
 import { publicApi } from '../../api'
-import { formatCurrency, formatDateTime, cn } from '../../utils'
+import { formatCurrency, formatDateTime, cn, getImagenUrl } from '../../utils'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card'
@@ -234,7 +234,7 @@ export default function SeguimientoReservaPage() {
                   <div className="w-24 h-24 bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden flex items-center justify-center shrink-0">
                     {reserva.producto?.imagenUrl || reserva.variante?.imagenUrl ? (
                       <img 
-                        src={reserva.variante?.imagenUrl || reserva.producto?.imagenUrl} 
+                        src={getImagenUrl(reserva.variante?.imagenUrl || reserva.producto?.imagenUrl)} 
                         className="w-full h-full object-contain"
                       />
                     ) : (
@@ -345,9 +345,9 @@ export default function SeguimientoReservaPage() {
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className="aspect-video w-full rounded-2xl bg-slate-100 overflow-hidden border border-slate-200 relative group">
-                    <img src={reserva.comprobanteUrl} className="w-full h-full object-contain" />
+                    <img src={getImagenUrl(reserva.comprobanteUrl)} className="w-full h-full object-contain" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <a href={reserva.comprobanteUrl} target="_blank" rel="noreferrer" className="bg-white text-slate-900 px-6 py-2 rounded-full font-bold shadow-xl">Ver en grande</a>
+                      <a href={getImagenUrl(reserva.comprobanteUrl)} target="_blank" rel="noreferrer" className="bg-white text-slate-900 px-6 py-2 rounded-full font-bold shadow-xl">Ver en grande</a>
                     </div>
                   </div>
                   {reserva.estado === 'EN_REVISION' && (

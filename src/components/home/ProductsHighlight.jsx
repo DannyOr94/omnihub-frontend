@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight, ShoppingBag, Flame } from 'lucide-react'
-import { formatCurrency } from '../../utils'
+import { formatCurrency, getImagenUrl } from '../../utils'
 
 function TarjetaDestacada({ producto }) {
   const mostrarUrgencia = producto.disponible && producto.stockRestante !== null && producto.stockRestante <= 5
@@ -20,7 +20,7 @@ function TarjetaDestacada({ producto }) {
         <div className="absolute inset-0 bg-gradient-to-t from-slate-100/50 to-transparent pointer-events-none" />
         
         {producto.imagenUrl
-          ? <img src={producto.imagenUrl} alt={producto.nombre} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-1000 ease-[cubic-bezier(0.25,1,0.5,1)] relative z-10" loading="lazy" />
+          ? <img src={getImagenUrl(producto.imagenUrl)} alt={producto.nombre} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-1000 ease-[cubic-bezier(0.25,1,0.5,1)] relative z-10" loading="lazy" />
           : <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center rounded-2xl">
               <ShoppingBag size={60} className="text-slate-300 group-hover:scale-110 transition-transform duration-700" />
             </div>

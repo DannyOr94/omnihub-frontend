@@ -14,6 +14,7 @@ import { Input }       from '../../components/ui/input'
 import { Label }       from '../../components/ui/label'
 import { Badge }       from '../../components/ui/badge'
 import { Textarea }    from '../../components/ui/textarea'
+import { FormField }   from '../../components/ui/form-field'
 import {
   Dialog, DialogContent, DialogHeader,
   DialogTitle, DialogFooter,
@@ -29,16 +30,6 @@ const clienteSchema = z.object({
   direccion:      z.string().max(300).optional().or(z.literal('')),
   observaciones:  z.string().max(1000).optional().or(z.literal('')),
 })
-
-function Campo({ label, error, children, required }) {
-  return (
-    <div className="space-y-1.5">
-      <Label>{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
-      {children}
-      {error && <p className="text-xs text-red-500">{error}</p>}
-    </div>
-  )
-}
 
 export default function ClientesPage() {
   const { esAdmin } = useAuth()
@@ -302,26 +293,26 @@ export default function ClientesPage() {
             <DialogTitle>{editando ? 'Editar cliente' : 'Nuevo cliente'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={form.handleSubmit(onGuardar)} className="space-y-4 pt-1">
-            <Campo label="Nombre completo" required error={form.formState.errors.nombreCompleto?.message}>
-              <Input {...form.register('nombreCompleto')} />
-            </Campo>
+            <FormField label="Nombre completo" required error={form.formState.errors.nombreCompleto?.message}>
+              <Input aria-invalid={!!form.formState.errors.nombreCompleto} {...form.register('nombreCompleto')} />
+            </FormField>
             <div className="grid grid-cols-2 gap-3">
-              <Campo label="Teléfono" error={form.formState.errors.telefono?.message}>
-                <Input placeholder="8888-8888" {...form.register('telefono')} />
-              </Campo>
-              <Campo label="Cédula" error={form.formState.errors.cedula?.message}>
-                <Input {...form.register('cedula')} />
-              </Campo>
+              <FormField label="Teléfono" error={form.formState.errors.telefono?.message}>
+                <Input aria-invalid={!!form.formState.errors.telefono} placeholder="8888-8888" {...form.register('telefono')} />
+              </FormField>
+              <FormField label="Cédula" error={form.formState.errors.cedula?.message}>
+                <Input aria-invalid={!!form.formState.errors.cedula} {...form.register('cedula')} />
+              </FormField>
             </div>
-            <Campo label="Correo electrónico" error={form.formState.errors.correo?.message}>
-              <Input type="email" {...form.register('correo')} />
-            </Campo>
-            <Campo label="Dirección">
-              <Input {...form.register('direccion')} />
-            </Campo>
-            <Campo label="Observaciones">
-              <Textarea rows={2} {...form.register('observaciones')} />
-            </Campo>
+            <FormField label="Correo electrónico" error={form.formState.errors.correo?.message}>
+              <Input aria-invalid={!!form.formState.errors.correo} type="email" {...form.register('correo')} />
+            </FormField>
+            <FormField label="Dirección" error={form.formState.errors.direccion?.message}>
+              <Input aria-invalid={!!form.formState.errors.direccion} {...form.register('direccion')} />
+            </FormField>
+            <FormField label="Observaciones" error={form.formState.errors.observaciones?.message}>
+              <Textarea aria-invalid={!!form.formState.errors.observaciones} rows={2} {...form.register('observaciones')} />
+            </FormField>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setModalForm(false)}>Cancelar</Button>
               <Button type="submit" disabled={enviando}>

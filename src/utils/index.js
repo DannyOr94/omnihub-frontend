@@ -104,3 +104,15 @@ export const ETIQUETAS = {
 export function etiqueta(valor) {
   return ETIQUETAS[valor] ?? valor
 }
+
+export function getImagenUrl(url) {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+  const host = apiBase.replace('/api', '')
+  const cleanUrl = url.startsWith('/') ? url : `/${url}`
+  return `${host}${cleanUrl}`
+}
+

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { CheckCircle, XCircle, Clock, ExternalLink, Image as ImageIcon } from 'lucide-react'
 import { apartadosApi } from '../../api'
-import { formatCurrency, formatDateTime } from '../../utils'
+import { formatCurrency, formatDateTime, getImagenUrl } from '../../utils'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import {
@@ -33,7 +33,7 @@ function EstadoBadge({ estado }) {
   )
 }
 
-const getUrl = (url) => url ? (url.startsWith('http') ? url : `http://localhost:3000${url}`) : ''
+const getUrl = getImagenUrl
 
 export default function ReservasWebPage() {
   const [reservas, setReservas] = useState([])

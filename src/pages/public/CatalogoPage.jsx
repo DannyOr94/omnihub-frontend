@@ -7,8 +7,8 @@ import {
   Upload, X, Package, ChevronRight, Info, Star,
   TrendingUp, Zap, ChevronLeft, ArrowRight
 } from 'lucide-react'
-import { publicApi } from '../../api/index'
-import { formatCurrency, cn } from '../../utils'
+import { publicApi, analyticsApi } from '../../api/index'
+import { formatCurrency, cn, getImagenUrl } from '../../utils'
 
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
@@ -61,7 +61,7 @@ function ProductoCard({ producto, onReservar }) {
 
         {producto.imagenUrl ? (
           <img 
-            src={varianteSeleccionada?.imagenUrl || producto.imagenUrl} 
+            src={getImagenUrl(varianteSeleccionada?.imagenUrl || producto.imagenUrl)} 
             alt={producto.nombre}
             className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-110"
           />
@@ -190,6 +190,26 @@ function ModalReserva({ abierto, setAbierto, producto, onSuccess, cuentasPago = 
   
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (abierto && producto?.productoId) {
+      let sesionId = localStorage.getItem('analytics_session_id')
+      if (!sesionId) {
+        sesionId = Math.random().toString(36).substring(2) + Date.now().toString(36)
+        localStorage.setItem('analytics_session_id', sesionId)
+      }
+
+      const detectarDispositivo = () => {
+        return window.innerWidth < 768 ? 'Mobile' : 'Desktop'
+      }
+
+      analyticsApi.registrarVisita({
+        productoId: producto.productoId,
+        sesionId,
+        dispositivo: detectarDispositivo()
+      }).catch(err => console.log('Error analítico de visita silencioso:', err))
+    }
+  }, [abierto, producto?.productoId])
 
   const reservarMutation = useMutation({
     mutationFn: (datos) => publicApi.reservarTemporal(datos),
@@ -706,7 +726,7 @@ export default function CatalogoPage() {
                         className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors text-left group/item"
                       >
                         <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0">
-                          {p.imagenUrl && <img src={p.imagenUrl} className="w-full h-full object-cover" />}
+                          {p.imagenUrl && <img src={getImagenUrl(p.imagenUrl)} className="w-full h-full object-cover" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-slate-900 truncate">{p.nombre}</p>

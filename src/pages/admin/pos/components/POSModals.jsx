@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '../../../../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../components/ui/select'
 import { Button } from '../../../../components/ui/button'
-import { formatCurrency } from '../../../../utils'
+import { formatCurrency, getImagenUrl } from '../../../../utils'
 import { clientesApi, productosApi } from '../../../../api/index'
 const METODOS_PAGO = [
   { value: 'EFECTIVO',      label: 'Efectivo' },
@@ -19,7 +19,7 @@ const MONTOS_RAPIDOS = [1000, 2000, 5000, 10000, 20000, 50000]
 
 // ─── Modal de Creación de Cliente ─────────────────────────────────────────────
 function ModalCrearCliente({ open, onClose, onCreado }) {
-  const [form, setForm] = useState({ nombreCompleto: '', cedula: '', telefono: '', correo: '', direccion: '' })
+  const [form, setForm] = useState({ nombreCompleto: '', cedula: '', tipoIdentificacion: 'CEDULA_FISICA', telefono: '', correo: '', direccion: '' })
   const [guardando, setGuardando] = useState(false)
   const [errores, setErrores] = useState({})
 
@@ -36,6 +36,21 @@ function ModalCrearCliente({ open, onClose, onCreado }) {
       e.correo = 'Correo inválido'
     if (form.telefono && form.telefono.length < 8)
       e.telefono = 'Teléfono inválido'
+    
+    if (form.cedula.trim()) {
+      const clean = form.cedula.replace(/[^0-9a-zA-Z]/g, '')
+      if (form.tipoIdentificacion === 'CEDULA_FISICA' && clean.length !== 9) {
+        e.cedula = 'Cédula física debe tener 9 dígitos'
+      } else if (form.tipoIdentificacion === 'CEDULA_JURIDICA' && clean.length !== 10) {
+        e.cedula = 'Cédula jurídica debe tener 10 dígitos'
+      } else if (form.tipoIdentificacion === 'DIMEX' && (clean.length < 11 || clean.length > 12)) {
+        e.cedula = 'DIMEX debe tener 11 o 12 dígitos'
+      }
+      
+      if (!form.correo.trim()) {
+        e.correo = 'El correo es obligatorio para facturación personalizada'
+      }
+    }
     return e
   }
 
@@ -44,9 +59,11 @@ function ModalCrearCliente({ open, onClose, onCreado }) {
     if (Object.keys(e).length) { setErrores(e); return }
     setGuardando(true)
     try {
+      const cedulaLimpia = form.cedula.trim() ? form.cedula.replace(/[^0-9a-zA-Z]/g, '') : null
       const datos = {
         nombreCompleto: form.nombreCompleto.trim(),
-        cedula: form.cedula.trim() || null,
+        cedula: cedulaLimpia,
+        tipoIdentificacion: cedulaLimpia ? form.tipoIdentificacion : null,
         telefono: form.telefono.trim() || null,
         correo: form.correo.trim() || null,
         direccion: form.direccion.trim() || null,
@@ -55,7 +72,7 @@ function ModalCrearCliente({ open, onClose, onCreado }) {
       const nuevo = res.data.data
       toast.success(`Cliente "${nuevo.nombreCompleto}" creado`)
       onCreado(nuevo)
-      setForm({ nombreCompleto:'', cedula:'', telefono:'', correo:'', direccion:'' })
+      setForm({ nombreCompleto:'', cedula:'', tipoIdentificacion: 'CEDULA_FISICA', telefono:'', correo:'', direccion:'' })
     } catch (err) {
       toast.error(err.response?.data?.message ?? 'Error al crear cliente')
     } finally {
@@ -78,8 +95,25 @@ function ModalCrearCliente({ open, onClose, onCreado }) {
           {errores.nombreCompleto && <p className="text-xs text-red-500 mt-1">{errores.nombreCompleto}</p>}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Input placeholder="Cédula" value={form.cedula} onChange={e => set('cedula', e.target.value)} className="h-9 text-sm" />
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <Select value={form.tipoIdentificacion} onValueChange={v => set('tipoIdentificacion', v)}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Tipo ID" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CEDULA_FISICA">Física</SelectItem>
+                <SelectItem value="CEDULA_JURIDICA">Jurídica</SelectItem>
+                <SelectItem value="DIMEX">DIMEX</SelectItem>
+                <SelectItem value="PASAPORTE">Pasaporte</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Input placeholder="Identificación" value={form.cedula} onChange={e => set('cedula', e.target.value)} 
+              className={`h-9 text-sm ${errores.cedula ? 'border-red-400 focus-visible:ring-red-400' : ''}`} />
+            {errores.cedula && <p className="text-xs text-red-500 mt-1">{errores.cedula}</p>}
+          </div>
           <div>
             <Input placeholder="Teléfono" value={form.telefono} onChange={e => set('telefono', e.target.value)}
               className={`h-9 text-sm ${errores.telefono ? 'border-red-400 focus-visible:ring-red-400' : ''}`} />
@@ -88,7 +122,7 @@ function ModalCrearCliente({ open, onClose, onCreado }) {
         </div>
 
         <div>
-          <Input placeholder="Correo electrónico" type="email" value={form.correo} onChange={e => set('correo', e.target.value)}
+          <Input placeholder="Correo electrónico *" type="email" value={form.correo} onChange={e => set('correo', e.target.value)}
             className={`h-9 text-sm ${errores.correo ? 'border-red-400 focus-visible:ring-red-400' : ''}`} />
           {errores.correo && <p className="text-xs text-red-500 mt-1">{errores.correo}</p>}
         </div>
@@ -151,7 +185,7 @@ function VariantesSelector({ producto, onSeleccionar }) {
                 <p className="text-sm text-slate-600 mt-1 font-medium">{formatCurrency(v.precioVenta)}</p>
               </div>
               {v.imagenUrl && (
-                <img src={`http://localhost:3000${v.imagenUrl}`} className="w-12 h-12 object-cover rounded-lg border ml-2 shrink-0 bg-white" alt="" />
+                <img src={getImagenUrl(v.imagenUrl)} className="w-12 h-12 object-cover rounded-lg border ml-2 shrink-0 bg-white" alt="" />
               )}
             </div>
 
@@ -508,81 +542,192 @@ export function POSModals({ pos }) {
 
       {/* Modal: Comprobante (Factura) */}
       <Dialog open={!!modalComprobante} onOpenChange={() => setModalComprobante(null)}>
-        <DialogContent aria-describedby={undefined} className="max-w-2xl p-0 overflow-hidden bg-white">
+        <DialogContent aria-describedby={undefined} className="max-w-md p-0 overflow-hidden bg-slate-100 border-none shadow-2xl">
           <DialogDescription className="sr-only">Comprobante de venta confirmada</DialogDescription>
-          <div className="no-print">
-            <div className="bg-green-600 text-white px-6 py-4 flex items-center justify-between">
-              <DialogHeader><DialogTitle className="text-xl font-bold flex items-center gap-2">✓ Venta Confirmada</DialogTitle></DialogHeader>
-              <div className="flex gap-2">
-                <Button onClick={() => window.print()} className="bg-white text-green-700 hover:bg-green-50 font-bold">
-                  <Printer size={18} className="mr-2" /> Imprimir Recibo
-                </Button>
-                <Button variant="ghost" onClick={() => setModalComprobante(null)} className="text-white hover:bg-white/10 p-2 h-auto">
-                  <X size={20} />
-                </Button>
-              </div>
+          
+          <style>{`
+            @media print {
+              body * {
+                visibility: hidden;
+              }
+              .ticket-print-area, .ticket-print-area * {
+                visibility: visible;
+              }
+              .ticket-print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 80mm !important;
+                max-width: 80mm !important;
+                margin: 0 !important;
+                padding: 4mm !important;
+                font-size: 11px !important;
+                line-height: 1.3 !important;
+                font-family: 'Courier New', Courier, monospace !important;
+                color: #000 !important;
+                background: white !important;
+              }
+              .no-print {
+                display: none !important;
+              }
+            }
+          `}</style>
+
+          <div className="no-print bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                <Printer size={18} className="text-green-400" /> ✓ Venta Registrada
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex gap-2">
+              <Button onClick={() => window.print()} className="bg-green-600 hover:bg-green-700 font-bold h-9 text-xs">
+                <Printer size={14} className="mr-1.5" /> Imprimir
+              </Button>
+              <Button variant="ghost" onClick={() => setModalComprobante(null)} className="text-white hover:bg-white/10 p-2 h-9 w-9 flex items-center justify-center">
+                <X size={20} />
+              </Button>
             </div>
           </div>
 
-          <div className="p-8 bg-white proforma-print-area">
-            {/* Header Mini Factura */}
-            <div className="text-center border-b pb-6 mb-6">
-              <h2 className="text-2xl font-black text-slate-900">OMNIHUB</h2>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Comprobante de Venta</p>
-              <div className="flex justify-center gap-4 mt-4 text-[11px] font-bold text-slate-400 uppercase">
-                <span>No. {modalComprobante?.numeroVenta}</span>
-                <span>•</span>
-                <span>{new Date().toLocaleDateString()}</span>
-              </div>
-            </div>
+          {/* Contenedor del Ticket POS (Simulación en pantalla y área de impresión) */}
+          <div className="p-6 overflow-y-auto max-h-[75vh] flex justify-center custom-scrollbar">
+            <div className="ticket-print-area bg-white border border-dashed border-slate-300 rounded-lg shadow-md p-6 w-[80mm] min-h-[500px] text-slate-800 text-xs font-mono leading-relaxed relative">
+              {/* Receipt Top Cut Border Simulation (no-print) */}
+              <div className="no-print absolute -top-1.5 left-0 right-0 h-3 bg-repeat-x bg-[linear-gradient(45deg,transparent_33.333%,#cbd5e1_33.333%,#cbd5e1_66.667%,transparent_66.667%),linear-gradient(-45deg,transparent_33.333%,#cbd5e1_33.333%,#cbd5e1_66.667%,transparent_66.667%)] bg-[size:10px_6px]"></div>
 
-            <div className="grid grid-cols-2 gap-8 mb-6 text-sm">
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cliente</p>
-                <p className="font-bold text-slate-800">{modalComprobante?.cliente?.nombreCompleto || 'Cliente Contado'}</p>
-                {modalComprobante?.cliente?.cedula && <p className="text-xs text-slate-500">ID: {modalComprobante.cliente.cedula}</p>}
+              {/* Emisor / Sede Info */}
+              <div className="text-center mb-4">
+                <h3 className="text-sm font-extrabold tracking-tight text-slate-950 uppercase">OMNIHUB T&K</h3>
+                <p className="text-[10px] text-slate-500 font-bold uppercase mt-0.5">Tienda y Servicio Técnico</p>
+                <p className="text-[10px] text-slate-600 mt-1 font-semibold">
+                  {modalComprobante?.sucursal?.nombre || 'Sede Central Nicoya'}
+                </p>
+                <p className="text-[9px] text-slate-500">
+                  {modalComprobante?.sucursal?.direccion || 'Nicoya Centro, Guanacaste, CR'}
+                </p>
+                <p className="text-[9px] text-slate-500">
+                  Cédula: 3-101-778899 · Tel: {modalComprobante?.sucursal?.telefono || '2685-1234'}
+                </p>
               </div>
-              <div className="text-right">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Vendedor</p>
-                <p className="font-bold text-slate-800">{pos.usuario?.nombre} {pos.usuario?.apellido}</p>
-              </div>
-            </div>
 
-            <table className="w-full text-sm mb-6">
-              <thead className="border-b">
-                <tr className="text-[10px] font-black text-slate-400 uppercase">
-                  <th className="py-2 text-left">Cant.</th>
-                  <th className="py-2 text-left">Producto</th>
-                  <th className="py-2 text-right">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {modalComprobante?.detalles?.map((d, i) => (
-                  <tr key={i}>
-                    <td className="py-3 font-bold text-slate-900">{d.cantidad}</td>
-                    <td className="py-3 text-slate-700">{d.producto?.nombre || d.variante?.producto?.nombre || 'Producto'}</td>
-                    <td className="py-3 text-right font-bold text-slate-900">{formatCurrency(d.precioUnitario * d.cantidad)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            <div className="border-t pt-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500 font-bold">Subtotal</span>
-                <span className="font-bold text-slate-900">{formatCurrency(modalComprobante?.subtotal || modalComprobante?.total)}</span>
+              <div className="border-t border-dashed border-slate-300 py-2 space-y-0.5 text-[10px]">
+                <p><strong>Factura:</strong> {modalComprobante?.numeroVenta}</p>
+                <p><strong>Fecha:</strong> {modalComprobante?.fechaVenta ? new Date(modalComprobante.fechaVenta).toLocaleString('es-CR') : new Date().toLocaleString('es-CR')}</p>
+                <p><strong>Caja:</strong> {modalComprobante?.caja || 'Caja 01'}</p>
+                <p><strong>Cajero:</strong> {modalComprobante?.cajero ? `${modalComprobante.cajero.nombre} ${modalComprobante.cajero.apellido}` : `${pos.usuario?.nombre} ${pos.usuario?.apellido}`}</p>
               </div>
-              <div className="flex justify-between items-center bg-slate-900 text-white px-4 py-3 rounded-lg mt-4">
-                <span className="text-xs font-black uppercase tracking-widest">Total Pagado</span>
-                <span className="text-xl font-black">{formatCurrency(modalComprobante?.total)}</span>
-              </div>
-            </div>
 
-            <div className="mt-8 text-center no-print">
-              <Button className="w-full bg-slate-900 hover:bg-slate-800 font-bold py-6 text-lg rounded-xl" onClick={() => { setModalComprobante(null); searchRef.current?.focus() }}>
-                Finalizar y Nueva Venta
-              </Button>
+              <div className="border-t border-dashed border-slate-300 py-2 space-y-0.5 text-[10px]">
+                <p><strong>Cliente:</strong> {modalComprobante?.cliente?.nombreCompleto || 'Cliente Contado'}</p>
+                <p><strong>Identif:</strong> {modalComprobante?.cliente?.cedula || '999999999'}</p>
+                {modalComprobante?.cliente?.tipoIdentificacion && (
+                  <p><strong>Tipo ID:</strong> {modalComprobante.cliente.tipoIdentificacion}</p>
+                )}
+                {modalComprobante?.cliente?.correo && (
+                  <p className="break-all"><strong>Correo:</strong> {modalComprobante.cliente.correo}</p>
+                )}
+              </div>
+
+              {/* Detalles de Productos */}
+              <div className="border-t border-dashed border-slate-300 pt-2">
+                <table className="w-full text-[10px] text-left">
+                  <thead>
+                    <tr className="border-b border-dashed border-slate-300 font-bold">
+                      <th className="pb-1 w-10">Cant</th>
+                      <th className="pb-1">Descripción</th>
+                      <th className="pb-1 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-dashed divide-slate-100">
+                    {modalComprobante?.detalles?.map((d, i) => {
+                      const desc = d.producto?.nombre || d.variante?.producto?.nombre || d.descripcionItem || 'Producto'
+                      return (
+                        <tr key={i} className="align-top">
+                          <td className="py-1.5 font-bold">{d.cantidad}x</td>
+                          <td className="py-1.5 pr-2">
+                            <span>{desc}</span>
+                            {d.descuentoLinea > 0 && (
+                              <span className="block text-[9px] text-red-500 font-semibold">-Desc: {formatCurrency(d.descuentoLinea)}</span>
+                            )}
+                          </td>
+                          <td className="py-1.5 text-right font-semibold">{formatCurrency(d.precioUnitario * d.cantidad)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Totales */}
+              <div className="border-t border-dashed border-slate-300 pt-2 space-y-1 text-[10px]">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>{formatCurrency(modalComprobante?.subtotal || 0)}</span>
+                </div>
+                {modalComprobante?.descuento > 0 && (
+                  <div className="flex justify-between text-red-500 font-bold">
+                    <span>Descuento:</span>
+                    <span>-{formatCurrency(modalComprobante.descuento)}</span>
+                  </div>
+                )}
+                {/* IVA Desglosado de Costa Rica */}
+                {(() => {
+                  const total = Number(modalComprobante?.total || 0)
+                  const baseIva = Math.round((total / 1.13) * 100) / 100
+                  const iva = Math.round((total - baseIva) * 100) / 100
+                  return (
+                    <>
+                      <div className="flex justify-between text-slate-500">
+                        <span>Gravado (13%):</span>
+                        <span>{formatCurrency(baseIva)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-500">
+                        <span>IVA (13%):</span>
+                        <span>{formatCurrency(iva)}</span>
+                      </div>
+                    </>
+                  )
+                })()}
+                <div className="flex justify-between text-xs font-black border-t border-dashed border-slate-300 pt-1.5 text-slate-950">
+                  <span>TOTAL NETO:</span>
+                  <span>{formatCurrency(modalComprobante?.total || 0)}</span>
+                </div>
+              </div>
+
+              {/* Pagos */}
+              <div className="border-t border-dashed border-slate-300 pt-2 space-y-0.5 text-[10px]">
+                <p className="font-bold text-[9px] uppercase tracking-wider text-slate-500 mb-1">Detalle de Pago</p>
+                {modalComprobante?.pagos?.map((p, i) => {
+                  const m = p.metodoPago === 'EFECTIVO' ? 'Efectivo' :
+                            p.metodoPago === 'SINPE' ? 'SINPE Móvil' :
+                            p.metodoPago === 'DATAFONO' ? 'Datáfono' :
+                            p.metodoPago === 'TRANSFERENCIA' ? 'Transferencia' : 'Otro'
+                  return (
+                    <div key={i} className="flex justify-between">
+                      <span>· {m} {p.referenciaPago ? `(Ref: ${p.referenciaPago})` : ''}:</span>
+                      <span>{formatCurrency(p.monto)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Leyenda legal */}
+              <div className="border-t border-dashed border-slate-300 mt-4 pt-3 text-center text-[9px] text-slate-400 space-y-1">
+                <p className="font-bold text-slate-500">¡GRACIAS POR SU COMPRA!</p>
+                <p>Autorizado mediante resolución de Facturación Electrónica N° DGT-R-033-2019.</p>
+                <p className="text-[8px]">Representación gráfica de comprobante digital.</p>
+              </div>
+
+              {/* Receipt Bottom Cut Simulation (no-print) */}
+              <div className="no-print absolute -bottom-1.5 left-0 right-0 h-3 bg-repeat-x bg-[linear-gradient(45deg,transparent_33.333%,#cbd5e1_33.333%,#cbd5e1_66.667%,transparent_66.667%),linear-gradient(-45deg,transparent_33.333%,#cbd5e1_33.333%,#cbd5e1_66.667%,transparent_66.667%)] bg-[size:10px_6px] rotate-180"></div>
             </div>
+          </div>
+
+          <div className="no-print bg-white px-6 py-4 border-t border-slate-200">
+            <Button className="w-full bg-slate-900 hover:bg-slate-800 font-bold py-5 text-sm rounded-xl shadow-lg" 
+              onClick={() => { setModalComprobante(null); searchRef.current?.focus() }}>
+              Aceptar y Nueva Venta
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

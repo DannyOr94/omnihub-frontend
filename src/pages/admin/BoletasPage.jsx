@@ -7,6 +7,7 @@ import {
   Plus, Search, RefreshCw, Wrench, ChevronRight,
   X, ArrowRight, DollarSign, Package, Clock,
   CheckCircle, XCircle, AlertTriangle, FileText,
+  Camera, Upload, Trash2,
 } from 'lucide-react'
 import { boletasApi, clientesApi, usuariosApi, productosApi } from '../../api/index'
 import { useAuth }    from '../../context/AuthContext'
@@ -61,12 +62,17 @@ const crearSchema = z.object({
   clienteId:             z.coerce.number().int().positive('Selecciona un cliente'),
   tipoEquipo:            z.string().min(2, 'Mínimo 2 caracteres').max(100),
   marca:                 z.string().min(1, 'Obligatorio').max(100),
-  modelo:                z.string().max(100).optional(),
-  numeroSerie:           z.string().max(100).optional(),
+  modelo:                z.string().max(100).optional().nullable(),
+  numeroSerie:           z.string().max(100).optional().nullable(),
   fallaReportada:        z.string().min(5, 'Mínimo 5 caracteres'),
   estadoRecepcionFisica: z.string().min(3, 'Mínimo 3 caracteres'),
-  accesoriosRecibidos:   z.string().optional(),
-  observacionesCliente:  z.string().optional(),
+  accesoriosRecibidos:   z.string().optional().nullable(),
+  observacionesCliente:  z.string().optional().nullable(),
+  costoRevision:         z.coerce.number().min(0, 'Costo no puede ser negativo').default(0),
+  presupuestoMax:        z.coerce.number().min(0, 'Presupuesto no puede ser negativo').default(0),
+  fechaEstimada:         z.string().min(1, 'Fecha de entrega estimada requerida'),
+  tecnicoId:             z.coerce.number().int().positive().optional().nullable(),
+  exencionDatos:         z.boolean().refine(val => val === true, { message: 'Debe aceptar los términos de exención' }),
 })
 
 const presupuestoSchema = z.object({
@@ -138,13 +144,60 @@ export default function BoletasPage() {
   const [productos,  setProductos]  = useState([])
   const [busqProd,   setBusqProd]   = useState('')
 
+  // Fotos de la boleta actual en creación
+  const [fotosSubidas, setFotosSubidas] = useState([])
+  const [subiendoFotos, setSubiendoFotos] = useState(false)
+
   // Forms
-  const formCrear       = useForm({ resolver: zodResolver(crearSchema) })
+  const formCrear       = useForm({
+    resolver: zodResolver(crearSchema),
+    defaultValues: {
+      costoRevision: 0,
+      presupuestoMax: 0,
+      exencionDatos: false,
+      tecnicoId: undefined,
+      modelo: '',
+      numeroSerie: '',
+      accesoriosRecibidos: '',
+      observacionesCliente: '',
+    }
+  })
   const formPresupuesto = useForm({ resolver: zodResolver(presupuestoSchema), defaultValues: { manoObra: 0 } })
   const formPago        = useForm({ resolver: zodResolver(pagoSchema) })
   const formRepuesto    = useForm({ resolver: zodResolver(repuestoSchema), defaultValues: { cantidad: 1 } })
   const [estadoNuevo,   setEstadoNuevo]   = useState('')
   const [comentarioEst, setComentarioEst] = useState('')
+
+  const handleSubirFotos = async (e) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    if (fotosSubidas.length + files.length > 4) {
+      toast.warning('Puedes subir un máximo de 4 fotos')
+      return
+    }
+
+    setSubiendoFotos(true)
+    const formData = new FormData()
+    files.forEach(file => {
+      formData.append('fotos', file)
+    })
+
+    try {
+      const res = await boletasApi.subirFotos(formData)
+      const nuevasUrls = res.data.data?.urls || []
+      setFotosSubidas(prev => [...prev, ...nuevasUrls])
+      toast.success('Imágenes subidas correctamente')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error al subir las imágenes')
+    } finally {
+      setSubiendoFotos(false)
+    }
+  }
+
+  const eliminarFoto = (urlEliminar) => {
+    setFotosSubidas(prev => prev.filter(url => url !== urlEliminar))
+  }
 
   // ─── Cargar lista ──────────────────────────────────────────────────────────
   const cargarBoletas = useCallback(async () => {
@@ -205,12 +258,17 @@ export default function BoletasPage() {
   async function onCrear(datos) {
     setEnviando(true)
     try {
-      await boletasApi.crear(datos)
+      const payload = {
+        ...datos,
+        fotos: fotosSubidas,
+      }
+      await boletasApi.crear(payload)
       toast.success('Boleta creada correctamente')
       setModalCrear(false)
       formCrear.reset()
       setBusqCliente('')
       setClientes([])
+      setFotosSubidas([])
       cargarBoletas()
     } catch (err) {
       toast.error(err.response?.data?.message ?? 'Error al crear boleta')
@@ -456,6 +514,10 @@ export default function BoletasPage() {
               {/* Resumen financiero */}
               <div className="bg-white rounded-xl border p-4 space-y-2">
                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Financiero</h3>
+                <InfoRow label="Costo de revisión" value={formatCurrency(detalle.costoRevision)} />
+                {Number(detalle.presupuestoMax) > 0 && (
+                  <InfoRow label="Presupuesto máx. autorizado" value={formatCurrency(detalle.presupuestoMax)} />
+                )}
                 <InfoRow label="Mano de obra" value={formatCurrency(detalle.manoObra)} />
                 <InfoRow label="Repuestos" value={formatCurrency(detalle.subtotalRepuestos)} />
                 <Separator />
@@ -503,6 +565,29 @@ export default function BoletasPage() {
                         )}
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Evidencia fotográfica de recepción ─────────────────────────── */}
+            {detalle.fotos?.length > 0 && (
+              <div className="bg-white rounded-xl border p-4">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Evidencia fotográfica</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {detalle.fotos.map(f => (
+                    <a
+                      key={f.id}
+                      href={`http://localhost:3000${f.url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group relative rounded-lg overflow-hidden aspect-video border bg-slate-50 hover:opacity-90 transition-opacity"
+                    >
+                      <img src={`http://localhost:3000${f.url}`} alt="Evidencia de recepción" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-[10px] text-white font-medium bg-black/60 px-2 py-1 rounded">Ver pantalla completa</span>
+                      </div>
+                    </a>
                   ))}
                 </div>
               </div>
@@ -607,8 +692,100 @@ export default function BoletasPage() {
               <Textarea rows={2} {...formCrear.register('observacionesCliente')} />
             </Campo>
 
+            <div className="border-t pt-4 my-2 space-y-3">
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Diagnóstico y Trazabilidad</h4>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <Campo label="Costo de Revisión (₡)" error={formCrear.formState.errors.costoRevision?.message}>
+                  <Input type="number" min="0" step="100" {...formCrear.register('costoRevision')} />
+                </Campo>
+                <Campo label="Presupuesto Máximo (₡)" error={formCrear.formState.errors.presupuestoMax?.message}>
+                  <Input type="number" min="0" step="100" {...formCrear.register('presupuestoMax')} />
+                </Campo>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Campo label="Fecha Estimada de Entrega" required error={formCrear.formState.errors.fechaEstimada?.message}>
+                  <Input type="date" {...formCrear.register('fechaEstimada')} />
+                </Campo>
+                <Campo label="Técnico Asignado" error={formCrear.formState.errors.tecnicoId?.message}>
+                  <Select onValueChange={v => formCrear.setValue('tecnicoId', v === 'none' ? null : parseInt(v))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar técnico..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin asignar / En cola</SelectItem>
+                      {tecnicos.map(t => (
+                        <SelectItem key={t.id} value={t.id.toString()}>
+                          {t.nombre} {t.apellido}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Campo>
+              </div>
+            </div>
+
+            <div className="border-t pt-4 my-2">
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Evidencia Visual (Max. 4 fotos)</h4>
+              
+              <div className="relative border-2 border-dashed border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors flex flex-col items-center justify-center cursor-pointer">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleSubirFotos}
+                  disabled={subiendoFotos || fotosSubidas.length >= 4}
+                  className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                />
+                <Upload className="text-slate-400 mb-2" size={24} />
+                <span className="text-xs text-slate-600 font-medium text-center">
+                  {subiendoFotos ? 'Subiendo imágenes...' : 'Arrastra o selecciona imágenes (Mín. 3-4 recomendado)'}
+                </span>
+                <span className="text-[10px] text-slate-400 mt-1 text-center">Soporta JPG, PNG · Cámara activa en móviles ({fotosSubidas.length}/4)</span>
+              </div>
+
+              {fotosSubidas.length > 0 && (
+                <div className="grid grid-cols-4 gap-2 mt-3">
+                  {fotosSubidas.map((url, idx) => (
+                    <div key={idx} className="relative group rounded-md overflow-hidden aspect-square border">
+                      <img src={`http://localhost:3000${url}`} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => eliminarFoto(url)}
+                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-90 hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t pt-4 my-2 space-y-3">
+              <div className="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  id="exencionDatos"
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  {...formCrear.register('exencionDatos')}
+                />
+                <label htmlFor="exencionDatos" className="text-xs text-slate-600 cursor-pointer leading-relaxed">
+                  Acepto la <strong className="text-slate-700">Exención de Responsabilidad por Datos</strong>. El cliente declara que ha respaldado su información y OmniHub no se hace responsable por pérdida de datos durante el soporte.
+                </label>
+              </div>
+              {formCrear.formState.errors.exencionDatos && (
+                <p className="text-xs text-red-500 ml-6">{formCrear.formState.errors.exencionDatos.message}</p>
+              )}
+
+              <p className="text-[10px] text-slate-400 leading-normal bg-slate-50 p-2.5 rounded border border-slate-100">
+                ⚖️ <strong>Cláusula de Garantía y Abandono:</strong> La garantía de reparación es de 30 días únicamente sobre la falla reparada. De conformidad con las políticas del taller, los artículos no retirados en un plazo de 30 días calendario posteriores al aviso de entrega se considerarán abandonados y serán descartados o liquidados para cubrir costos de soporte.
+              </p>
+            </div>
+
             <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => { setModalCrear(false); formCrear.reset(); setBusqCliente(''); setClientes([]) }}>
+              <Button variant="outline" type="button" onClick={() => { setModalCrear(false); formCrear.reset(); setBusqCliente(''); setClientes([]); setFotosSubidas([]) }}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={enviando}>

@@ -30,6 +30,7 @@ import ReportesPage    from '../pages/admin/ReportesPage'
 import PromocionesPage       from '../pages/admin/PromocionesPage'
 import UsuariosPage          from '../pages/admin/UsuariosPage'
 import ConfiguracionHomePage from '../pages/admin/ConfiguracionHomePage'
+import HistorialGlobalPage   from '../pages/admin/HistorialGlobalPage'
 
 // ─── Guardia: requiere autenticación ─────────────────────────────────────────
 function RequiereAuth() {
@@ -107,6 +108,7 @@ export default function AppRouter() {
               <Route path="/admin/promociones"       element={<PromocionesPage />} />
               <Route path="/admin/usuarios"          element={<UsuariosPage />} />
               <Route path="/admin/configuracion-home" element={<ConfiguracionHomePage />} />
+              <Route path="/admin/historial"         element={<HistorialGlobalPage />} />
             </Route>
 
           </Route>

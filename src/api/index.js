@@ -1,10 +1,11 @@
 import api from './client'
 
 export const ventasApi = {
-  listar:  (params)      => api.get('/ventas',           { params }),
-  obtener: (id)          => api.get(`/ventas/${id}`),
-  crear:   (datos)       => api.post('/ventas',           datos),
-  anular:  (id, motivo)  => api.patch(`/ventas/${id}/anular`, { motivo }),
+  listar:           (params)      => api.get('/ventas',           { params }),
+  obtener:          (id)          => api.get(`/ventas/${id}`),
+  crear:            (datos)       => api.post('/ventas',           datos),
+  anular:           (id, motivo)  => api.patch(`/ventas/${id}/anular`, { motivo }),
+  listarSucursales: ()            => api.get('/ventas/sucursales'),
 }
 
 export const productosApi = {
@@ -55,6 +56,7 @@ export const boletasApi = {
   retirarRepuesto: (id, rid)        => api.delete(`/boletas/${id}/repuestos/${rid}`),
   registrarPago:   (id, datos)      => api.post(`/boletas/${id}/pagos`,              datos),
   salidaCredito:   (id, autorizar)  => api.patch(`/boletas/${id}/salida-credito`,    { autorizar }),
+  subirFotos:      (formData)       => api.post('/boletas/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 }
 
 export const apartadosApi = {
@@ -87,6 +89,9 @@ export const reportesApi = {
   servicioTecnico:(params)  => api.get('/reportes/servicio-tecnico', { params }),
   apartados:      ()        => api.get('/reportes/apartados'),
   pedidos:        ()        => api.get('/reportes/pedidos'),
+  financiero:     (params)  => api.get('/reportes/financiero',       { params }),
+  gerencial:      (params)  => api.get('/reportes/gerencial',        { params }),
+  iaConsultor:    (datos)   => api.post('/reportes/ia-consultor',     datos),
 }
 
 export const promocionesApi = {
@@ -129,4 +134,13 @@ export const testimoniosApi = {
 export const configuracionHomeApi = {
   obtener:    ()       => api.get('/configuracion-home'),
   actualizar: (datos)  => api.patch('/configuracion-home', datos),
+}
+
+export const analyticsApi = {
+  registrarVisita:         (datos)  => api.post('/analytics/visita', datos),
+  registrarBusqueda:       (datos)  => api.post('/analytics/busqueda', datos),
+  matrizIntencion:         (params) => api.get('/analytics/matriz-intencion', { params }),
+  oportunidadesPerdidas:   ()       => api.get('/analytics/oportunidades-perdidas'),
+  productosMuertos:        (params) => api.get('/analytics/productos-muertos', { params }),
+  alertasReabastecimiento: ()       => api.get('/analytics/alertas-reabastecimiento'),
 }

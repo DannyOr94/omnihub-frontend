@@ -1,45 +1,81 @@
 import { ShoppingCart, History, Clock, UserPlus, PauseCircle, Trash2 } from 'lucide-react'
 
 export function POSTabs({ pos }) {
-  const { tabActivo, setTabActivo, enEspera, setModalEspera } = pos
+  const { tabActivo, setTabActivo, enEspera, setModalEspera, sucursales, sucursalActiva, cambiarSucursal, caja, setCaja } = pos
 
   return (
-    <div className="flex items-center gap-2 mb-6">
-      {/* Segmented Control */}
-      <div className="flex items-center bg-slate-100/80 p-1.5 rounded-xl border border-slate-200/60 shadow-sm">
-        <button
-          onClick={() => setTabActivo('pos')}
-          className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
-            tabActivo === 'pos' 
-              ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/50' 
-              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-          }`}
-        >
-          <ShoppingCart size={16} className={tabActivo === 'pos' ? 'text-blue-600' : ''} /> 
-          Punto de Venta
-        </button>
-        <button
-          onClick={() => setTabActivo('historial')}
-          className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
-            tabActivo === 'historial' 
-              ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/50' 
-              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-          }`}
-        >
-          <History size={16} className={tabActivo === 'historial' ? 'text-blue-600' : ''} /> 
-          Historial de ventas
-        </button>
+    <div className="flex items-center justify-between mb-6 gap-4">
+      <div className="flex items-center gap-2">
+        {/* Segmented Control */}
+        <div className="flex items-center bg-slate-100/80 p-1.5 rounded-xl border border-slate-200/60 shadow-sm">
+          <button
+            onClick={() => setTabActivo('pos')}
+            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
+              tabActivo === 'pos' 
+                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/50' 
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+            }`}
+          >
+            <ShoppingCart size={16} className={tabActivo === 'pos' ? 'text-blue-600' : ''} /> 
+            Punto de Venta
+          </button>
+          <button
+            onClick={() => setTabActivo('historial')}
+            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
+              tabActivo === 'historial' 
+                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/50' 
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+            }`}
+          >
+            <History size={16} className={tabActivo === 'historial' ? 'text-blue-600' : ''} /> 
+            Historial de ventas
+          </button>
+        </div>
+
+        {/* Indicador de ventas en espera */}
+        {enEspera.length > 0 && (
+          <button
+            onClick={() => setModalEspera(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-amber-700 bg-amber-50/80 border border-amber-200/50 hover:bg-amber-100 hover:shadow-sm transition-all animate-pulse shadow-sm"
+          >
+            <Clock size={16} className="text-amber-500" />
+            {enEspera.length} en espera
+          </button>
+        )}
       </div>
 
-      {/* Indicador de ventas en espera */}
-      {enEspera.length > 0 && (
-        <button
-          onClick={() => setModalEspera(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-amber-700 bg-amber-50/80 border border-amber-200/50 hover:bg-amber-100 hover:shadow-sm transition-all animate-pulse shadow-sm"
-        >
-          <Clock size={16} className="text-amber-500" />
-          {enEspera.length} en espera
-        </button>
+      {/* Selector de Sucursal y Caja */}
+      {tabActivo === 'pos' && (
+        <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-xl border border-slate-200/60 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Sucursal:</span>
+            <select
+              value={sucursalActiva?.id || ''}
+              onChange={(e) => {
+                const found = sucursales.find(s => s.id === Number(e.target.value))
+                if (found) cambiarSucursal(found)
+              }}
+              className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              {sucursales.map(s => (
+                <option key={s.id} value={s.id}>{s.nombre}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="h-4 w-px bg-slate-200"></div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Terminal:</span>
+            <input
+              type="text"
+              value={caja}
+              onChange={(e) => setCaja(e.target.value)}
+              placeholder="Caja"
+              className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 w-20 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
       )}
     </div>
   )

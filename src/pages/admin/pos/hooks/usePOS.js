@@ -93,16 +93,38 @@ export function usePOS() {
   const [busquedaCliente, setBusquedaCliente] = useState('')
   const [resultadosCliente, setResultadosCliente] = useState([])
 
-  // ─── Caja
+  // ─── Caja y Sucursales
   const [cajaAbierta, setCajaAbierta] = useState(null)
   const [enviando, setEnviando] = useState(false)
+  const [sucursales, setSucursales] = useState([])
+  const [sucursalActiva, setSucursalActiva] = useState(null)
+  const [caja, setCaja] = useState('Caja 01')
+  const [pedidoId, setPedidoId] = useState(null)
 
   useEffect(() => {
     cajaApi.estado()
       .then(res => setCajaAbierta(res.data.data?.abierta ?? false))
       .catch(() => setCajaAbierta(false))
+    
+    ventasApi.listarSucursales()
+      .then(res => {
+        const list = res.data.data ?? []
+        setSucursales(list)
+        if (list.length > 0) {
+          const guardada = localStorage.getItem('omnihub_sucursal_id')
+          const found = list.find(s => s.id === Number(guardada))
+          setSucursalActiva(found || list[0])
+        }
+      })
+      .catch(() => {})
+
     searchRef.current?.focus()
   }, [])
+
+  function cambiarSucursal(s) {
+    setSucursalActiva(s)
+    if (s?.id) localStorage.setItem('omnihub_sucursal_id', String(s.id))
+  }
 
   // ─── Cálculos
   const subtotalLineas = carrito.reduce((s, l) => s + (l.precioUnitario * l.cantidad) - l.descuentoLinea, 0)
@@ -202,6 +224,7 @@ export function usePOS() {
     setPagos([{ metodoPago: 'EFECTIVO', monto: '', referenciaPago: '' }])
     setPromoActiva(null)
     setPromos([])
+    setPedidoId(null)
     searchRef.current?.focus()
   }
 
@@ -308,6 +331,10 @@ export function usePOS() {
     try {
       const body = {
         clienteId: clienteId ?? null,
+        sucursalId: sucursalActiva?.id ?? null,
+        cajeroId: usuario?.id ?? null,
+        caja: caja || 'Caja 01',
+        pedidoId: pedidoId ?? null,
         descuento: Number(descuento) || 0,
         observaciones: observaciones || null,
         detalles: carrito.map(l => ({
@@ -350,6 +377,10 @@ export function usePOS() {
     // Estados
     tabActivo, setTabActivo,
     cajaAbierta, enviando,
+    sucursales, setSucursales,
+    sucursalActiva, cambiarSucursal,
+    caja, setCaja,
+    pedidoId, setPedidoId,
     // Búsqueda productos
     busqueda,
     // Carrito

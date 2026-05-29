@@ -3,7 +3,7 @@ import { useState } from 'react'
 import {
   LayoutDashboard, ShoppingCart, Package, Warehouse,
   Users, BookMarked, ClipboardList, Wrench, BarChart3,
-  Tag, UserCog, LogOut, Menu, X, DollarSign, Store, Home, Globe
+  Tag, UserCog, LogOut, Menu, X, DollarSign, Store, Home, Globe, Star
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { Button }  from '../components/ui/button'
@@ -25,7 +25,7 @@ const NAV_ITEMS = [
   { to: '/admin/reportes',   label: 'Reportes',        icon: BarChart3,       roles: ['ADMINISTRADOR'] },
   { to: '/admin/promociones',label: 'Promociones',     icon: Tag,             roles: ['ADMINISTRADOR'] },
   { to: '/admin/usuarios',   label: 'Usuarios',        icon: UserCog,         roles: ['ADMINISTRADOR'] },
-  { to: '/admin/configuracion-home', label: 'Configuración Home', icon: Home, roles: ['ADMINISTRADOR'] },
+  { to: '/admin/configuracion-home', label: 'Web & Reseñas', icon: Star, roles: ['ADMINISTRADOR'] },
 ]
 
 export default function AdminLayout() {

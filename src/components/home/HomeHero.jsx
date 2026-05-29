@@ -42,19 +42,6 @@ export default function HomeHero({ config }) {
         '-=1.2'
       )
 
-      // Parallax suave al mover el mouse
-      const handleMouseMove = (e) => {
-        const { clientX, clientY } = e
-        const xPos = (clientX / window.innerWidth - 0.5) * 40
-        const yPos = (clientY / window.innerHeight - 0.5) * 40
-        
-        gsap.to(image1Ref.current, { x: xPos * 0.8, y: yPos * 0.8, rotation: -8 + (xPos * 0.1), duration: 2, ease: 'power2.out' })
-        gsap.to(image2Ref.current, { x: -xPos * 1.2, y: -yPos * 1.2, rotation: 8 + (xPos * 0.1), duration: 2, ease: 'power2.out' })
-        gsap.to('.hero-orb', { x: xPos * 2, y: yPos * 2, duration: 3, stagger: 0.2, ease: 'power1.out' })
-      }
-
-      window.addEventListener('mousemove', handleMouseMove)
-      return () => window.removeEventListener('mousemove', handleMouseMove)
     }, sectionRef)
 
     return () => ctx.revert()
@@ -99,7 +86,7 @@ export default function HomeHero({ config }) {
             
             <p 
               ref={subtitleRef}
-              className="text-xl md:text-2xl text-slate-400 mb-14 leading-relaxed max-w-xl mx-auto lg:mx-0 font-medium tracking-tight"
+              className="text-xl md:text-2xl text-slate-300 mb-14 leading-relaxed max-w-xl mx-auto lg:mx-0 font-medium tracking-tight"
             >
               {config.heroSubtitulo}
             </p>
@@ -110,7 +97,7 @@ export default function HomeHero({ config }) {
             >
               <button
                 onClick={() => navigate('/catalogo')}
-                className="group relative flex items-center gap-4 bg-white text-slate-950 font-black px-12 py-6 rounded-3xl transition-all duration-500 hover:scale-105 active:scale-95 shadow-[0_20px_50px_rgba(255,255,255,0.1)] hover:shadow-[0_20px_60px_rgba(255,255,255,0.2)]"
+                className="group relative flex items-center gap-4 bg-white text-slate-950 font-black px-12 py-6 rounded-3xl transition-all duration-500 hover:scale-105 active:scale-95 shadow-xl hover:shadow-2xl"
               >
                 <span className="text-lg">Explorar Catálogo</span>
                 <ArrowRight size={22} className="group-hover:translate-x-2 transition-transform duration-500" />

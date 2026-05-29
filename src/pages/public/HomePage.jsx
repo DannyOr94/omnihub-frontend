@@ -7,7 +7,7 @@ import { publicApi } from '../../api/index'
 // Componentes modulares
 import HomeHero from '../../components/home/HomeHero'
 import StatsSection from '../../components/home/StatsSection'
-import BusinessSections from '../../components/home/BusinessSections'
+
 import ProductsHighlight from '../../components/home/ProductsHighlight'
 import TestimonialsSection from '../../components/home/TestimonialsSection'
 import NosotrosSection from '../../components/home/NosotrosSection'
@@ -45,14 +45,13 @@ const DEFAULTS = {
 }
 
 export default function HomePage() {
-  // 1. Fetch de Configuración con Auto-Refetch (Polling cada 30s)
+  // 1. Fetch de Configuración
   const { data: configData } = useQuery({
     queryKey: ['homeConfig'],
     queryFn: async () => {
       const r = await publicApi.homeConfig()
       return r.data?.data || {}
     },
-    refetchInterval: 30000, // Polling automático (reemplaza el setInterval)
     initialData: DEFAULTS,  // Evita parpadeos mientras carga
   })
 
@@ -66,9 +65,27 @@ export default function HomePage() {
       const r = await publicApi.catalogo({ limit: 8 })
       const lista = r.data?.data || []
       return lista.filter(p => p.disponible).slice(0, 4)
-    },
-    refetchInterval: 30000,
+    }
   })
+
+  // 3. Fetch de Testimonios Aprobados desde la web
+  const { data: testimoniosWeb = [] } = useQuery({
+    queryKey: ['homeTestimoniosAprobados'],
+    queryFn: async () => {
+      try {
+        const r = await publicApi.getTestimonios()
+        return r.data?.data || []
+      } catch (err) {
+        return []
+      }
+    }
+  })
+
+  // Combinar los testimonios configurados manualmente con los enviados por clientes
+  const todosLosTestimonios = [
+    ...(config.testimonios || []),
+    ...testimoniosWeb
+  ]
 
   useLayoutEffect(() => {
     // Refrescar triggers cuando los datos de productos o config cambian
@@ -83,29 +100,13 @@ export default function HomePage() {
   const contentRef = useRef(null)
 
   useLayoutEffect(() => {
-    const ctx = gsap.context(() => {
-      // Animación de entrada para el contenedor blanco
-      gsap.from(contentRef.current, {
-        y: 100,
-        opacity: 0,
-        duration: 1.5,
-        ease: 'power4.out',
-        scrollTrigger: {
-          trigger: contentRef.current,
-          start: 'top 95%',
-        }
-      })
-    })
-
+    // Solo un refresh simple sin animar opacidad del contenedor
     const timer = setTimeout(() => {
       ScrollTrigger.refresh()
     }, 1000)
 
-    return () => {
-      ctx.revert()
-      clearTimeout(timer)
-    }
-  }, [productos, configData])
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <div className="bg-[#020617] min-h-screen selection:bg-blue-500/30 selection:text-white">
@@ -116,8 +117,6 @@ export default function HomePage() {
       {/* Stats: Impacto Real */}
       <StatsSection config={config} />
 
-      {/* Secciones de Negocio: Dualismo Premium */}
-      <BusinessSections />
 
       <div 
         ref={contentRef}
@@ -136,7 +135,7 @@ export default function HomePage() {
 
       {/* Testimonios con opción de agregar */}
       <TestimonialsSection 
-        testimonios={config.testimonios} 
+        testimonios={todosLosTestimonios} 
         visible={config.mostrarTestimonios ?? true}
       />
 
