@@ -28,9 +28,11 @@ api.interceptors.response.use(
     // Solo reintentar si:
     // 1. Es un 401
     // 2. No es ya un reintento
-    // 3. NO es una ruta de autenticación (evita loop en /me y /refresh)
-    const esRutaAuth = original.url?.includes('/auth/')
-    if (error.response?.status === 401 && !original._reintento && !esRutaAuth) {
+    // 3. NO es login, refresh o logout (evita loops, pero permite renovar en /me)
+    const esEvitarRefresh = original.url?.includes('/auth/login') ||
+                            original.url?.includes('/auth/refresh') ||
+                            original.url?.includes('/auth/logout')
+    if (error.response?.status === 401 && !original._reintento && !esEvitarRefresh) {
       if (renovando) {
         // Encolar requests mientras se renueva
         return new Promise((resolve, reject) => {

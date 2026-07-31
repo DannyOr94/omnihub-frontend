@@ -1,31 +1,25 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Search, Filter, Calendar, FileDown, Printer,
   ShoppingCart, DollarSign, Wrench, BookMarked, Package, Globe, Eye,
-  Users, Activity
+  Users, Activity, RefreshCw
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { reportesApi } from '../../api/index'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { formatCurrency } from '../../utils'
-
-// Mock Data representativo de la tabla historial_movimientos exactamente como la propuesta PDF
-const MOCK_HISTORIAL = [
-  { id: 8492, fecha: '17/05/2026', hora: '11:15 AM', modulo: 'Inventario', moduloIcon: Package, moduloColor: 'red', accion: 'Ajuste manual de stock', responsable: 'Administrador', impacto: '-2 unidades', nota: 'Se quebraron dos unidades en el proceso de acomodo del estante central.', detalle: 'Pantalla compatible iPhone 13 Pro' },
-  { id: 8491, fecha: '17/05/2026', hora: '10:45 AM', modulo: 'Ventas', moduloIcon: ShoppingCart, moduloColor: 'blue', accion: 'Venta completada', responsable: 'Cajero 1', impacto: '+₡45,000', nota: '', detalle: 'Factura #1024 - Método: Efectivo' },
-  { id: 8490, fecha: '17/05/2026', hora: '09:30 AM', modulo: 'Soporte', moduloIcon: Wrench, moduloColor: 'purple', accion: 'Cambio de estado (Revisión → Listo)', responsable: 'Soporte Técnico', impacto: '---', nota: '', detalle: 'Boleta #502 - Cliente: Ana Rojas' },
-  { id: 8489, fecha: '17/05/2026', hora: '08:15 AM', modulo: 'Caja', moduloIcon: Globe, moduloColor: 'green', accion: 'Apertura de Caja', responsable: 'Administrador', impacto: '₡251,000', nota: 'Caja chica base verificada.', detalle: 'Apertura de caja inicial del día' },
-  { id: 8488, fecha: '16/05/2026', hora: '04:20 PM', modulo: 'Apartados', moduloIcon: BookMarked, moduloColor: 'orange', accion: 'Abono recibido', responsable: 'Vendedor 2', impacto: '+₡15,000', nota: 'Segundo abono regular.', detalle: 'Apartado #105 - Cliente: Mario Casas' },
-  { id: 8487, fecha: '16/05/2026', hora: '02:10 PM', modulo: 'Inventario', moduloIcon: Package, moduloColor: 'red', accion: 'Ingreso de Mercadería', responsable: 'Administrador', impacto: '+50 unidades', nota: 'Lote recibido de proveedor local.', detalle: 'Cargador Carga Rápida Tipo C Generic' },
-  { id: 8486, fecha: '16/05/2026', hora: '11:45 AM', modulo: 'Ventas', moduloIcon: ShoppingCart, moduloColor: 'blue', accion: 'Venta completada', responsable: 'Cajero 1', impacto: '+₡12,500', nota: '', detalle: 'Factura #1023 - Método: SINPE Móvil' },
-  { id: 8485, fecha: '16/05/2026', hora: '09:15 AM', modulo: 'Soporte', moduloIcon: Wrench, moduloColor: 'purple', accion: 'Nueva Boleta Ingresada', responsable: 'Vendedor 2', impacto: '---', nota: '', detalle: 'Boleta #503 - Cambio Batería Huawei P30' },
-]
 
 export default function HistorialGlobalPage() {
   const [filtroModulo, setFiltroModulo] = useState('Todos')
   const [busqueda, setBusqueda] = useState('')
   const [modalAbierto, setModalAbierto] = useState(false)
   const [registroSeleccionado, setRegistroSeleccionado] = useState(null)
+  
+  const [movimientos, setMovimientos] = useState([])
+  const [paginacion, setPaginacion] = useState({ total: 0, paginas: 1, paginaActual: 1, limite: 50 })
+  const [cargando, setCargando] = useState(true)
+  const [pagina, setPagina] = useState(1)
 
   const modulos = ['Todos', 'Caja', 'Ventas', 'Soporte', 'Inventario', 'Apartados', 'Clientes']
 
@@ -52,28 +46,60 @@ export default function HistorialGlobalPage() {
     setModalAbierto(true)
   }
 
-  // Filtrado Frontend (Mock). En producción esto se pasa por query params al backend.
-  const datosFiltrados = MOCK_HISTORIAL.filter(r => {
-    const coincideModulo = filtroModulo === 'Todos' || r.modulo === filtroModulo
-    const coincideBusqueda = r.accion.toLowerCase().includes(busqueda.toLowerCase()) || r.detalle.toLowerCase().includes(busqueda.toLowerCase())
-    return coincideModulo && coincideBusqueda
-  })
+  useEffect(() => {
+    let active = true
+    const cargar = async () => {
+      setCargando(true)
+      try {
+        const res = await reportesApi.historialGlobal({
+          modulo: filtroModulo,
+          busqueda,
+          pagina,
+          limite: 50
+        })
+        if (active && res.data.ok) {
+          setMovimientos(res.data.data.movimientos || [])
+          setPaginacion(res.data.data.paginacion || { total: 0, paginas: 1, paginaActual: 1, limite: 50 })
+        }
+      } catch (err) {
+        console.error(err)
+        toast.error('Error al cargar el historial global')
+      } finally {
+        if (active) setCargando(false)
+      }
+    }
+
+    const timer = setTimeout(() => {
+      cargar()
+    }, 300)
+
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [filtroModulo, busqueda, pagina])
+
+  // Resetear página al cambiar filtros
+  useEffect(() => {
+    setPagina(1)
+  }, [filtroModulo, busqueda])
+
+  const datosFiltrados = movimientos
 
   // Cálculos dinámicos para los summary cards consolidados
-  const totalMovimientos = datosFiltrados.length
+  const totalMovimientos = paginacion.total
   
-  const ventasRegistradas = datosFiltrados
-    .filter(r => r.modulo === 'Ventas' && r.impacto.includes('₡'))
+  const ventasRegistradas = movimientos
+    .filter(r => r.modulo === 'Ventas' && r.impacto.includes('+'))
     .reduce((acc, curr) => {
       const num = parseInt(curr.impacto.replace(/[^0-9]/g, ''), 10)
       return acc + (isNaN(num) ? 0 : num)
     }, 0)
 
-  const flujoSoporte = datosFiltrados.filter(r => r.modulo === 'Soporte').length
+  const flujoSoporte = movimientos.filter(r => r.modulo === 'Soporte').length
 
-  // Ajustes de inventario (mermas/ajustes manuales que restan o suman individualmente)
-  const balanceInventario = datosFiltrados
-    .filter(r => r.modulo === 'Inventario' && r.accion.includes('Ajuste manual'))
+  const balanceInventario = movimientos
+    .filter(r => r.modulo === 'Inventario')
     .reduce((acc, curr) => {
       const isNegative = curr.impacto.includes('-')
       const num = parseInt(curr.impacto.replace(/[^0-9]/g, ''), 10)
@@ -418,54 +444,63 @@ export default function HistorialGlobalPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {datosFiltrados.map((row) => (
-                <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 font-semibold text-slate-900">
-                    #{row.id}
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-slate-800 font-medium">{row.fecha}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{row.hora}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded text-xs font-bold border ${getBadgeStyle(row.modulo)}`}>
-                      {row.modulo}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 font-medium text-slate-700">
-                    {row.accion}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-600 font-semibold">
-                    {row.responsable}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <span className={`font-extrabold ${
-                      row.impacto.includes('+') ? 'text-emerald-600' : 
-                      row.impacto.includes('-') ? 'text-rose-600' : 'text-slate-400'
-                    }`}>
-                      {row.impacto || '---'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm max-w-xs whitespace-normal">
-                    <div className="text-slate-800 font-medium" title={row.detalle}>{row.detalle}</div>
-                    {row.nota && (
-                      <div className="text-xs text-slate-400 italic mt-0.5">
-                        Nota: {row.nota}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <button 
-                      onClick={() => verDetalle(row)} 
-                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 shadow-sm border border-transparent hover:border-blue-100 mx-auto block"
-                      title="Ver detalle completo"
-                    >
-                      <Eye size={18} />
-                    </button>
+              {cargando && movimientos.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="px-6 py-12 text-center text-slate-500">
+                    <RefreshCw className="mx-auto animate-spin text-blue-500 mb-3" size={32} />
+                    <p className="text-base font-semibold">Cargando movimientos del sistema...</p>
                   </td>
                 </tr>
-              ))}
-              {datosFiltrados.length === 0 && (
+              ) : (
+                datosFiltrados.map((row) => (
+                  <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4 font-semibold text-slate-900">
+                      #{row.id}
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-slate-800 font-medium">{row.fecha}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{row.hora}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 rounded text-xs font-bold border ${getBadgeStyle(row.modulo)}`}>
+                        {row.modulo}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-medium text-slate-700">
+                      {row.accion}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600 font-semibold">
+                      {row.responsable}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className={`font-extrabold ${
+                        row.impacto.includes('+') ? 'text-emerald-600' : 
+                        row.impacto.includes('-') ? 'text-rose-600' : 'text-slate-400'
+                      }`}>
+                        {row.impacto || '---'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm max-w-xs whitespace-normal">
+                      <div className="text-slate-800 font-medium" title={row.detalle}>{row.detalle}</div>
+                      {row.nota && (
+                        <div className="text-xs text-slate-400 italic mt-0.5">
+                          Nota: {row.nota}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <button 
+                        onClick={() => verDetalle(row)} 
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 shadow-sm border border-transparent hover:border-blue-100 mx-auto block"
+                        title="Ver detalle completo"
+                      >
+                        <Eye size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+              {!cargando && datosFiltrados.length === 0 && (
                 <tr>
                   <td colSpan="8" className="px-6 py-12 text-center text-slate-500">
                     <Search className="mx-auto text-slate-300 mb-3" size={32} />
@@ -478,12 +513,31 @@ export default function HistorialGlobalPage() {
           </table>
         </div>
         
-        {/* Paginación Server-Side (UI Mock) */}
+        {/* Paginación Server-Side (Interactivo) */}
         <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500 bg-slate-50/50">
-          <span className="font-medium">Mostrando <strong className="text-slate-800">{datosFiltrados.length}</strong> de <strong className="text-slate-800">{datosFiltrados.length}</strong> registros</span>
+          <span className="font-medium">
+            Mostrando <strong className="text-slate-800">{movimientos.length}</strong> de{' '}
+            <strong className="text-slate-800">{paginacion.total}</strong> registros
+          </span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="bg-white rounded-lg shadow-sm" disabled>Anterior</Button>
-            <Button variant="outline" size="sm" className="bg-white rounded-lg shadow-sm" disabled>Siguiente</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-white rounded-lg shadow-sm"
+              disabled={pagina <= 1 || cargando}
+              onClick={() => setPagina(p => Math.max(1, p - 1))}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-white rounded-lg shadow-sm"
+              disabled={pagina >= paginacion.paginas || cargando}
+              onClick={() => setPagina(p => p + 1)}
+            >
+              Siguiente
+            </Button>
           </div>
         </div>
       </div>

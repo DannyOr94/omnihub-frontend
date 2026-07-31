@@ -1,38 +1,45 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Smartphone, Search, Wrench, CheckCircle,
   Clock, AlertTriangle, FileText, Package,
   ChevronRight, RefreshCw, RotateCcw,
 } from 'lucide-react'
 import { formatCurrency, formatDate, formatDateTime } from '../../utils'
+import {
+  Dialog, DialogContent, DialogHeader,
+  DialogTitle, DialogFooter,
+} from '../../components/ui/dialog'
+import { Button } from '../../components/ui/button'
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
 
 const PASOS = [
-  { key: 'RECIBIDO',       label: 'Recibido',        icono: Package      },
-  { key: 'EN_DIAGNOSTICO', label: 'Diagnóstico',     icono: Search       },
-  { key: 'PRESUPUESTADO',  label: 'Presupuestado',   icono: FileText     },
-  { key: 'APROBADO',       label: 'Aprobado',        icono: CheckCircle  },
-  { key: 'EN_REPARACION',  label: 'En reparación',   icono: Wrench       },
-  { key: 'LISTO_ENTREGA',  label: 'Listo',           icono: CheckCircle  },
-  { key: 'ENTREGADO',      label: 'Entregado',       icono: CheckCircle  },
+  { key: 'RECIBIDO',             label: 'Recibido',        icono: Package      },
+  { key: 'EN_REVISION',          label: 'Revisión',        icono: Search       },
+  { key: 'DIAGNOSTICADO',        label: 'Diagnóstico',     icono: FileText     },
+  { key: 'ESPERA_APROBACION',    label: 'Aprobación',      icono: Clock        },
+  { key: 'EN_REPARACION',        label: 'Reparación',      icono: Wrench       },
+  { key: 'LISTO_ENTREGA',        label: 'Listo',           icono: CheckCircle  },
+  { key: 'ENTREGADO',            label: 'Entregado',       icono: CheckCircle  },
 ]
 
 const ESTADO_CONFIG = {
-  RECIBIDO:       { paso: 1, color: 'blue',   label: 'Equipo recibido',        msg: 'Tu equipo está en nuestras manos. En breve iniciamos el diagnóstico.' },
-  EN_DIAGNOSTICO: { paso: 2, color: 'purple', label: 'En diagnóstico',         msg: 'Nuestro técnico está analizando tu equipo para identificar el problema.' },
-  PRESUPUESTADO:  { paso: 3, color: 'orange', label: 'Presupuesto listo',      msg: 'Ya tenemos el diagnóstico. Te contactaremos para presentarte el presupuesto.' },
-  APROBADO:       { paso: 4, color: 'teal',   label: 'Reparación aprobada',    msg: 'El presupuesto fue aprobado. Tu equipo está en cola para reparación.' },
-  EN_REPARACION:  { paso: 5, color: 'blue',   label: 'En reparación',          msg: 'Tu equipo está siendo reparado por nuestro técnico.' },
-  LISTO_ENTREGA:  { paso: 6, color: 'green',  label: '¡Listo para retirar!',   msg: 'Tu equipo está reparado y listo para que lo retires en nuestra tienda.' },
-  ENTREGADO:      { paso: 7, color: 'slate',  label: 'Entregado',              msg: 'Tu equipo fue entregado. ¡Gracias por confiar en K.M.A. Conexiones!' },
-  RECHAZADO:      { paso: 0, color: 'red',    label: 'Reparación no realizada', msg: 'La reparación no fue realizada. Puedes pasar a retirar tu equipo sin cargo.' },
+  RECIBIDO:             { paso: 1, color: 'blue',   label: 'Equipo recibido',        msg: 'Tu equipo está en nuestras manos. En breve iniciamos el diagnóstico.' },
+  EN_REVISION:          { paso: 2, color: 'purple', label: 'En revisión / desarme',  msg: 'El técnico está desarmando y realizando pruebas de laboratorio.' },
+  DIAGNOSTICADO:        { paso: 3, color: 'indigo', label: 'Diagnosticado',          msg: 'Se ha determinado el daño exacto y se redacta el informe técnico.' },
+  ESPERA_APROBACION:    { paso: 4, color: 'orange', label: 'Presupuesto listo',      msg: 'Hemos completado el diagnóstico. Esperamos tu aprobación para iniciar.' },
+  EN_REPARACION:        { paso: 5, color: 'blue',   label: 'En reparación',          msg: 'Tu equipo está siendo reparado por nuestro técnico.' },
+  LISTO_ENTREGA:        { paso: 6, color: 'green',  label: '¡Listo para retirar!',   msg: 'Tu equipo está reparado y listo para que lo retires en nuestra tienda.' },
+  ENTREGADO:            { paso: 7, color: 'slate',  label: 'Entregado',              msg: 'Tu equipo fue entregado. ¡Muchas gracias por confiar en nosotros!' },
+  RECHAZADO_DEVOLUCION: { paso: 0, color: 'red',    label: 'Presupuesto rechazado',  msg: 'Presupuesto rechazado. Puedes pasar a retirar tu equipo (aplica costo de revisión).' },
 }
 
 const COLOR_MAP = {
   blue:   { bg: 'bg-blue-50',   text: 'text-blue-600',   border: 'border-blue-200',   ring: 'ring-blue-400',   fill: 'bg-blue-600'   },
   purple: { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200', ring: 'ring-purple-400', fill: 'bg-purple-600' },
+  indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-200', ring: 'ring-indigo-400', fill: 'bg-indigo-600' },
   orange: { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200', ring: 'ring-orange-400', fill: 'bg-orange-500' },
   teal:   { bg: 'bg-teal-50',   text: 'text-teal-600',   border: 'border-teal-200',   ring: 'ring-teal-400',   fill: 'bg-teal-600'   },
   green:  { bg: 'bg-green-50',  text: 'text-green-600',  border: 'border-green-200',  ring: 'ring-green-400',  fill: 'bg-green-600'  },
@@ -53,7 +60,7 @@ function AnimacionReparacion({ estado }) {
       {/* Círculo animado central */}
       <div className="relative flex items-center justify-center mb-4">
         {/* Anillo pulsante exterior — solo cuando está activo */}
-        {!entregado && estado !== 'RECHAZADO' && (
+        {!entregado && estado !== 'RECHAZADO_DEVOLUCION' && (
           <div className={`absolute w-28 h-28 rounded-full ${colors.fill} opacity-10 animate-ping`} />
         )}
 
@@ -78,7 +85,7 @@ function AnimacionReparacion({ estado }) {
             </div>
           ) : entregado ? (
             <CheckCircle size={38} className="text-slate-400" />
-          ) : estado === 'RECHAZADO' ? (
+          ) : estado === 'RECHAZADO_DEVOLUCION' ? (
             <AlertTriangle size={38} className="text-red-500" />
           ) : (
             <Smartphone size={38} className={colors.text} />
@@ -101,7 +108,7 @@ function AnimacionReparacion({ estado }) {
 
 // ─── Barra de progreso de pasos ───────────────────────────────────────────────
 function BarraProgreso({ estado }) {
-  if (estado === 'RECHAZADO') return null
+  if (estado === 'RECHAZADO_DEVOLUCION') return null
   const cfg        = ESTADO_CONFIG[estado] ?? ESTADO_CONFIG.RECIBIDO
   const pasoActual = cfg.paso
   const colors     = COLOR_MAP[cfg.color]
@@ -153,12 +160,67 @@ function BarraProgreso({ estado }) {
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function ConsultaBoletaPage() {
+  const [searchParams] = useSearchParams()
   const [cedula,       setCedula]       = useState('')
   const [numeroBoleta, setNumeroBoleta] = useState('')
   const [resultado,    setResultado]    = useState(null)
   const [cargando,     setCargando]     = useState(false)
   const [error,        setError]        = useState('')
+  const [decidiendo,   setDecidiendo]   = useState(false)
+  const [decidiendoError, setDecidiendoError] = useState('')
+  const [confirmarOpen, setConfirmarOpen] = useState(false)
+  const [decisionAprobado, setDecisionAprobado] = useState(null)
   const inputRef = useRef(null)
+
+  const abrirConfirmacion = (aprobado) => {
+    setDecisionAprobado(aprobado)
+    setConfirmarOpen(true)
+  }
+
+  useEffect(() => {
+    const num = searchParams.get('num')
+    if (num) {
+      setNumeroBoleta(num.toUpperCase())
+    }
+  }, [searchParams])
+
+  async function decidirPresupuesto(aprobado) {
+    if (!resultado) return
+
+    setDecidiendo(true)
+    setDecidiendoError('')
+
+    try {
+      const res = await fetch(`${API_URL}/public/boletas/${resultado.id}/decidir-presupuesto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aprobado, cedula: cedula.trim() })
+      })
+      const json = await res.json()
+      if (!json.ok) {
+        setDecidiendoError(json.message ?? 'Ocurrió un error al procesar tu decisión.')
+        return
+      }
+
+      setConfirmarOpen(false)
+      // Volver a consultar para obtener el nuevo estado actualizado
+      const url = `${API_URL}/public/boleta?cedula=${encodeURIComponent(cedula.trim())}&numeroBoleta=${encodeURIComponent(numeroBoleta.trim().toUpperCase())}`
+      const resRefresh  = await fetch(url)
+      const jsonRefresh = await resRefresh.json()
+      if (jsonRefresh.ok) {
+        setResultado(jsonRefresh.data)
+      } else {
+        setResultado(prev => ({
+          ...prev,
+          estado: aprobado ? 'EN_REPARACION' : 'RECHAZADO_DEVOLUCION'
+        }))
+      }
+    } catch (err) {
+      setDecidiendoError('No se pudo establecer conexión con el servidor.')
+    } finally {
+      setDecidiendo(false)
+    }
+  }
 
   async function consultar(e) {
     e.preventDefault()
@@ -188,6 +250,7 @@ export default function ConsultaBoletaPage() {
   function reiniciar() {
     setResultado(null)
     setError('')
+    setDecidiendoError('')
     setCedula('')
     setNumeroBoleta('')
     setTimeout(() => inputRef.current?.focus(), 100)
@@ -361,6 +424,86 @@ export default function ConsultaBoletaPage() {
                 </div>
               </div>
 
+              {/* Diagnóstico y Presupuesto */}
+              {(resultado.diagnosticoTecnico || resultado.solucionPropuesta || Number(resultado.total) > 0) && (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden p-5 space-y-4">
+                  <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Diagnóstico & Presupuesto</h3>
+                  
+                  {resultado.diagnosticoTecnico && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Diagnóstico del Técnico</p>
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap">{resultado.diagnosticoTecnico}</p>
+                    </div>
+                  )}
+
+                  {resultado.solucionPropuesta && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Solución Propuesta</p>
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap">{resultado.solucionPropuesta}</p>
+                    </div>
+                  )}
+
+                  {(Number(resultado.manoObra) > 0 || Number(resultado.subtotalRepuestos) > 0) && (
+                    <div className="bg-slate-50 rounded-xl p-3 border space-y-1.5 text-xs">
+                      <div className="flex justify-between text-slate-500">
+                        <span>Mano de obra</span>
+                        <span>{formatCurrency(resultado.manoObra)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-500">
+                        <span>Repuestos</span>
+                        <span>{formatCurrency(resultado.subtotalRepuestos)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-slate-800 border-t pt-1.5 mt-1 text-sm">
+                        <span>Total Presupuestado</span>
+                        <span>{formatCurrency(resultado.total)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Panel de decisión para el cliente */}
+              {resultado.estado === 'ESPERA_APROBACION' && (
+                <div className="bg-gradient-to-br from-slate-50 to-orange-50 border border-orange-200 rounded-2xl p-5 space-y-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-orange-100 rounded-xl flex items-center justify-center shrink-0">
+                      <AlertTriangle size={18} className="text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-orange-950 text-sm">¿Deseas autorizar esta reparación?</p>
+                      <p className="text-xs text-orange-800 mt-0.5 leading-relaxed">
+                        Revisa los detalles técnicos y costos presentados arriba. Puedes aprobar para que iniciemos de inmediato, o rechazar si prefieres retirar tu equipo sin reparar.
+                      </p>
+                    </div>
+                  </div>
+
+                  {decidiendoError && (
+                    <div className="bg-red-50 border border-red-200 text-xs text-red-700 p-3 rounded-xl">
+                      {decidiendoError}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => abrirConfirmacion(false)}
+                      disabled={decidiendo}
+                      className="bg-white hover:bg-red-50 border border-red-200 text-red-600 font-semibold py-2.5 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      Rechazar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => abrirConfirmacion(true)}
+                      disabled={decidiendo}
+                      className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-sm"
+                    >
+                      Aprobar Reparación
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Saldo pendiente */}
               {resultado.saldoPendiente && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-4">
@@ -427,6 +570,122 @@ export default function ConsultaBoletaPage() {
 
         </div>
       </div>
+      {/* Modal de confirmación para el cliente */}
+      <Dialog open={confirmarOpen} onOpenChange={setConfirmarOpen}>
+        <DialogContent className="max-w-md rounded-3xl border-slate-100 shadow-2xl p-6 overflow-hidden">
+          <DialogHeader className="flex flex-col items-center text-center space-y-4">
+            {decisionAprobado ? (
+              <div className="relative">
+                <div className="absolute inset-0 bg-emerald-400/20 rounded-full blur-lg animate-pulse" />
+                <div className="relative w-14 h-14 rounded-full bg-emerald-50 border-2 border-emerald-100 flex items-center justify-center text-emerald-600 shadow-md">
+                  <CheckCircle size={28} strokeWidth={2.5} />
+                </div>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="absolute inset-0 bg-red-400/20 rounded-full blur-lg animate-pulse" />
+                <div className="relative w-14 h-14 rounded-full bg-red-50 border-2 border-red-100 flex items-center justify-center text-red-600 shadow-md">
+                  <AlertTriangle size={28} strokeWidth={2.5} />
+                </div>
+              </div>
+            )}
+            <div>
+              <DialogTitle className="text-xl font-extrabold text-slate-800 tracking-tight">
+                {decisionAprobado ? 'Autorizar Reparación' : 'Rechazar Presupuesto'}
+              </DialogTitle>
+              <p className="text-xs text-slate-400 font-medium mt-1">
+                Boleta de servicio #{resultado?.numeroBoleta}
+              </p>
+            </div>
+          </DialogHeader>
+
+          {/* Información del Dispositivo */}
+          <div className="mt-5 bg-slate-50 border border-slate-100 rounded-2xl p-3.5 text-left">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Dispositivo en Revisión</span>
+            <span className="text-sm font-extrabold text-slate-700 capitalize">
+              {resultado?.tipoEquipo} {resultado?.marca} {resultado?.modelo}
+            </span>
+          </div>
+
+          <div className="py-4 space-y-4 text-left">
+            {decisionAprobado ? (
+              <>
+                <p className="text-xs text-slate-500 leading-relaxed text-center px-2">
+                  Estás autorizando al equipo técnico de OmniHub a iniciar los trabajos y solicitar los repuestos correspondientes.
+                </p>
+
+                {/* Desglose de precios en Approval */}
+                <div className="bg-emerald-50/30 border border-emerald-100 rounded-2xl p-4 space-y-2.5">
+                  <div className="flex justify-between text-xs font-semibold text-slate-600">
+                    <span>Mano de obra</span>
+                    <span>{formatCurrency(resultado?.manoObra)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs font-semibold text-slate-600">
+                    <span>Repuestos asignados</span>
+                    <span>{formatCurrency(resultado?.subtotalRepuestos)}</span>
+                  </div>
+                  <div className="border-t border-emerald-100/50 pt-2.5 mt-2.5 flex justify-between items-baseline">
+                    <span className="text-xs font-black text-emerald-800 uppercase">Monto Total a Pagar</span>
+                    <span className="text-2xl font-black text-emerald-600">
+                      {formatCurrency(resultado?.total)}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-slate-500 leading-relaxed text-center px-2">
+                  El equipo técnico suspenderá cualquier reparación. El dispositivo se reensamblará y estará listo para retiro en el estado original.
+                </p>
+
+                {/* Cargo en Rejection */}
+                <div className="bg-red-50/30 border border-red-100 rounded-2xl p-4 space-y-2.5">
+                  <div className="flex justify-between items-baseline">
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-black text-red-800 uppercase block">Costo de Revisión Básica</span>
+                      <span className="text-[10px] text-red-600/80 font-medium block">Tarifa obligatoria por diagnóstico</span>
+                    </div>
+                    <span className="text-2xl font-black text-red-600">
+                      {formatCurrency(resultado?.costoRevision)}
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {decidiendoError && (
+              <div className="bg-red-50 border border-red-200 text-xs text-red-700 p-3.5 rounded-xl font-medium animate-shake">
+                {decidiendoError}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="grid grid-cols-2 gap-3 pt-2">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setConfirmarOpen(false)}
+              disabled={decidiendo}
+              className="w-full rounded-2xl border-slate-200 text-slate-600 hover:bg-slate-50 font-bold py-3 text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => decidirPresupuesto(decisionAprobado)}
+              disabled={decidiendo}
+              className={`w-full rounded-2xl text-white font-bold py-3 text-xs shadow-md transition-all duration-200 ${
+                decisionAprobado
+                  ? 'bg-emerald-600 hover:bg-emerald-700 hover:shadow-emerald-100 shadow-emerald-50'
+                  : 'bg-red-600 hover:bg-red-700 hover:shadow-red-100 shadow-red-50'
+              }`}
+            >
+              {decidiendo ? 'Procesando...' : decisionAprobado ? 'Aprobar y Reparar' : 'Confirmar Rechazo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   )
 }

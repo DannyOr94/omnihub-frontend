@@ -136,7 +136,7 @@ export default function ApartadosPage() {
     if (!q.trim()) { setClientes([]); return }
     try {
       const res = await clientesApi.buscar(q)
-      setClientes(res.data.data?.clientes ?? [])
+      setClientes(res.data.data ?? [])
     } catch { setClientes([]) }
   }
 

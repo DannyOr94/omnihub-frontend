@@ -9,9 +9,19 @@ export function AuthProvider({ children }) {
 
   // ─── Verificar sesión al montar ───────────────────────────────────────────
   useEffect(() => {
+    const isLogged = localStorage.getItem('omnihub_logged_in') === 'true'
+    if (!isLogged) {
+      setUsuario(null)
+      setCargando(false)
+      return
+    }
+
     authApi.me()
       .then(res => setUsuario(res.data.data))
-      .catch(() => setUsuario(null))
+      .catch(() => {
+        setUsuario(null)
+        localStorage.removeItem('omnihub_logged_in')
+      })
       .finally(() => setCargando(false))
   }, [])
 
@@ -21,6 +31,7 @@ export function AuthProvider({ children }) {
     const handler = () => {
       setUsuario(null)
       setCargando(false) // garantizar que nunca quede cargando
+      localStorage.removeItem('omnihub_logged_in')
     }
     window.addEventListener('auth:logout', handler)
     return () => window.removeEventListener('auth:logout', handler)
@@ -30,6 +41,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (correo, password) => {
     const res = await authApi.login(correo, password)
     setUsuario(res.data.data)
+    localStorage.setItem('omnihub_logged_in', 'true')
     return res.data.data
   }, [])
 
@@ -37,6 +49,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     try { await authApi.logout() } catch { /* ignorar errores de red al cerrar */ }
     setUsuario(null)
+    localStorage.removeItem('omnihub_logged_in')
   }, [])
 
   // ─── Helpers de rol ───────────────────────────────────────────────────────

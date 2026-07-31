@@ -446,9 +446,10 @@ export default function ReportesPage() {
                 {[
                   { name: 'POS (Venta Directa de Caja)', value: datos.ventasPorCanal.POS, color: 'bg-indigo-600' },
                   { name: 'Pedidos Regulares de Stock', value: datos.ventasPorCanal.REGULAR, color: 'bg-blue-500' },
-                  { name: 'Pedidos Especiales de Confección', value: datos.ventasPorCanal.ESPECIAL, color: 'bg-purple-500' }
+                  { name: 'Pedidos Especiales de Confección', value: datos.ventasPorCanal.ESPECIAL, color: 'bg-purple-500' },
+                  { name: 'Servicio Técnico / Soporte', value: datos.ventasPorCanal.SOPORTE || 0, color: 'bg-emerald-500' }
                 ].map((canal, idx) => {
-                  const maxVal = Math.max(datos.ventasPorCanal.POS, datos.ventasPorCanal.REGULAR, datos.ventasPorCanal.ESPECIAL, 1)
+                  const maxVal = Math.max(datos.ventasPorCanal.POS, datos.ventasPorCanal.REGULAR, datos.ventasPorCanal.ESPECIAL, datos.ventasPorCanal.SOPORTE || 0, 1)
                   const percent = (canal.value / maxVal) * 100
                   return (
                     <div key={idx} className="space-y-1">

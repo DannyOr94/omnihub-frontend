@@ -58,13 +58,13 @@ export const COLORES_ESTADO = {
   EN_PROCESO:       'bg-yellow-100 text-yellow-800',
   // Boletas
   RECIBIDO:         'bg-slate-100 text-slate-700',
-  EN_DIAGNOSTICO:   'bg-blue-100 text-blue-800',
-  PRESUPUESTADO:    'bg-purple-100 text-purple-800',
-  APROBADO:         'bg-teal-100 text-teal-800',
-  RECHAZADO:        'bg-red-100 text-red-700',
+  EN_REVISION:      'bg-blue-100 text-blue-800',
+  DIAGNOSTICADO:    'bg-indigo-100 text-indigo-800',
+  ESPERA_APROBACION: 'bg-purple-100 text-purple-800',
   EN_REPARACION:    'bg-orange-100 text-orange-800',
   LISTO_ENTREGA:    'bg-green-100 text-green-700',
   ENTREGADO:        'bg-slate-100 text-slate-500',
+  RECHAZADO_DEVOLUCION: 'bg-red-100 text-red-700',
   // Apartados
   ACTIVO:           'bg-blue-100 text-blue-800',
   ABONADO:          'bg-yellow-100 text-yellow-800',

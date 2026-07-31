@@ -75,6 +75,7 @@ export default function AppRouter() {
           <Route path="/catalogo"    element={<CatalogoPage />} />
           <Route path="/reserva/:id" element={<SeguimientoReservaPage />} />
           <Route path="/mis-boletas" element={<ConsultaBoletaPage />} />
+          <Route path="/consulta-boleta" element={<ConsultaBoletaPage />} />
         </Route>
 
         {/* ── Login — solo si no está autenticado ──────────────────────────── */}

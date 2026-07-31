@@ -177,7 +177,7 @@ export default function PedidosPage() {
     if (!q.trim()) { setClientes([]); return }
     try {
       const res = await clientesApi.buscar(q)
-      setClientes(res.data.data?.clientes ?? [])
+      setClientes(res.data.data ?? [])
     } catch {
       setClientes([])
     }
@@ -192,7 +192,7 @@ export default function PedidosPage() {
     }
     try {
       const res = await productosApi.listar({ busqueda: query, soloActivos: true })
-      setLineas(prev => prev.map((l, idx) => idx === index ? { ...l, results: res.data.data?.productos ?? [] } : l))
+      setLineas(prev => prev.map((l, idx) => idx === index ? { ...l, results: res.data.data ?? [] } : l))
     } catch {
       // ignore
     }

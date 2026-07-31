@@ -269,7 +269,7 @@ export default function ClientesPage() {
                 {[
                   { label: 'Ventas',    valor: seleccion._count.ventas },
                   { label: 'Apartados', valor: seleccion._count.apartados },
-                  { label: 'Pedidos',   valor: seleccion._count.pedidosEspeciales },
+                  { label: 'Pedidos',   valor: seleccion._count.pedidosEspeciales ?? seleccion._count.pedidos },
                   { label: 'Boletas',   valor: seleccion._count.boletas },
                 ].map(item => (
                   <div key={item.label} className="bg-white rounded-xl border p-4 text-center">

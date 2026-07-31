@@ -57,7 +57,9 @@ export const boletasApi = {
   registrarPago:   (id, datos)      => api.post(`/boletas/${id}/pagos`,              datos),
   salidaCredito:   (id, autorizar)  => api.patch(`/boletas/${id}/salida-credito`,    { autorizar }),
   subirFotos:      (formData)       => api.post('/boletas/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  enviarCorreo:    (id)             => api.post(`/boletas/${id}/enviar-correo`),
 }
+
 
 export const apartadosApi = {
   listar:   (params)     => api.get('/apartados',              { params }),
@@ -92,6 +94,7 @@ export const reportesApi = {
   financiero:     (params)  => api.get('/reportes/financiero',       { params }),
   gerencial:      (params)  => api.get('/reportes/gerencial',        { params }),
   iaConsultor:    (datos)   => api.post('/reportes/ia-consultor',     datos),
+  historialGlobal:(params)  => api.get('/reportes/historial-global', { params }),
 }
 
 export const promocionesApi = {

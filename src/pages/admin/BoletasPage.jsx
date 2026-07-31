@@ -7,7 +7,7 @@ import {
   Plus, Search, RefreshCw, Wrench, ChevronRight,
   X, ArrowRight, DollarSign, Package, Clock,
   CheckCircle, XCircle, AlertTriangle, FileText,
-  Camera, Upload, Trash2,
+  Camera, Upload, Trash2, Mail, MessageSquare,
 } from 'lucide-react'
 import { boletasApi, clientesApi, usuariosApi, productosApi } from '../../api/index'
 import { useAuth }    from '../../context/AuthContext'
@@ -29,37 +29,38 @@ import { formatCurrency, formatDate, formatDateTime, colorEstado } from '../../u
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const ESTADOS_BOLETA = [
-  'RECIBIDO', 'EN_DIAGNOSTICO', 'PRESUPUESTADO',
-  'APROBADO', 'RECHAZADO', 'EN_REPARACION',
-  'LISTO_ENTREGA', 'ENTREGADO',
+  'RECIBIDO', 'EN_REVISION', 'DIAGNOSTICADO', 'ESPERA_APROBACION',
+  'EN_REPARACION', 'LISTO_ENTREGA', 'ENTREGADO', 'RECHAZADO_DEVOLUCION',
 ]
 
 const ETIQUETAS_ESTADO = {
-  RECIBIDO:       'Recibido',
-  EN_DIAGNOSTICO: 'En diagnóstico',
-  PRESUPUESTADO:  'Presupuestado',
-  APROBADO:       'Aprobado',
-  RECHAZADO:      'Rechazado',
-  EN_REPARACION:  'En reparación',
-  LISTO_ENTREGA:  'Listo para entrega',
-  ENTREGADO:      'Entregado',
+  RECIBIDO:             'Recibido',
+  EN_REVISION:          'En revisión',
+  DIAGNOSTICADO:        'Diagnosticado',
+  ESPERA_APROBACION:    'Espera aprobación',
+  EN_REPARACION:        'En reparación',
+  LISTO_ENTREGA:        'Listo para entrega',
+  ENTREGADO:            'Entregado',
+  RECHAZADO_DEVOLUCION: 'Rechazado (Devolución)',
 }
 
 // Transiciones permitidas por estado
 const TRANSICIONES = {
-  RECIBIDO:       ['EN_DIAGNOSTICO'],
-  EN_DIAGNOSTICO: ['PRESUPUESTADO'],
-  PRESUPUESTADO:  ['APROBADO', 'RECHAZADO'],
-  APROBADO:       ['EN_REPARACION'],
-  EN_REPARACION:  ['LISTO_ENTREGA'],
-  LISTO_ENTREGA:  ['ENTREGADO'],
+  RECIBIDO:             ['EN_REVISION'],
+  EN_REVISION:          ['DIAGNOSTICADO'],
+  DIAGNOSTICADO:        ['ESPERA_APROBACION'],
+  ESPERA_APROBACION:    ['EN_REPARACION', 'RECHAZADO_DEVOLUCION'],
+  EN_REPARACION:        ['LISTO_ENTREGA'],
+  LISTO_ENTREGA:        ['ENTREGADO'],
+  RECHAZADO_DEVOLUCION: ['ENTREGADO'],
+  ENTREGADO:            [],
 }
 
 const METODOS_PAGO = ['EFECTIVO', 'SINPE', 'TRANSFERENCIA', 'DATAFONO', 'NOTA_CREDITO']
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 const crearSchema = z.object({
-  clienteId:             z.coerce.number().int().positive('Selecciona un cliente'),
+  clienteId:             z.number({ required_error: 'Selecciona un cliente', invalid_type_error: 'Selecciona un cliente' }).int().positive('Selecciona un cliente'),
   tipoEquipo:            z.string().min(2, 'Mínimo 2 caracteres').max(100),
   marca:                 z.string().min(1, 'Obligatorio').max(100),
   modelo:                z.string().max(100).optional().nullable(),
@@ -75,9 +76,19 @@ const crearSchema = z.object({
   exencionDatos:         z.boolean().refine(val => val === true, { message: 'Debe aceptar los términos de exención' }),
 })
 
+const clienteSchema = z.object({
+  nombreCompleto: z.string().min(2, 'Mínimo 2 caracteres').max(200).trim(),
+  telefono:       z.string().min(8, 'Teléfono inválido').max(20).optional().or(z.literal('')),
+  correo:         z.string().email('Correo inválido').optional().or(z.literal('')),
+  cedula:         z.string().min(5, 'Cédula inválida').max(30).optional().or(z.literal('')),
+  direccion:      z.string().max(300).optional().or(z.literal('')),
+})
+
 const presupuestoSchema = z.object({
   manoObra:              z.coerce.number().min(0),
   observacionesInternas: z.string().optional(),
+  diagnosticoTecnico:    z.string().optional(),
+  solucionPropuesta:     z.string().optional(),
 })
 
 const pagoSchema = z.object({
@@ -134,6 +145,7 @@ export default function BoletasPage() {
   const [modalPresupuesto, setModalPresupuesto]  = useState(false)
   const [modalPago,        setModalPago]         = useState(false)
   const [modalRepuesto,    setModalRepuesto]     = useState(false)
+  const [modalNuevoCliente, setModalNuevoCliente] = useState(false)
 
   const [enviando, setEnviando] = useState(false)
 
@@ -165,6 +177,16 @@ export default function BoletasPage() {
   const formPresupuesto = useForm({ resolver: zodResolver(presupuestoSchema), defaultValues: { manoObra: 0 } })
   const formPago        = useForm({ resolver: zodResolver(pagoSchema) })
   const formRepuesto    = useForm({ resolver: zodResolver(repuestoSchema), defaultValues: { cantidad: 1 } })
+  const formNuevoCliente = useForm({
+    resolver: zodResolver(clienteSchema),
+    defaultValues: {
+      nombreCompleto: '',
+      telefono: '',
+      correo: '',
+      cedula: '',
+      direccion: '',
+    }
+  })
   const [estadoNuevo,   setEstadoNuevo]   = useState('')
   const [comentarioEst, setComentarioEst] = useState('')
 
@@ -240,7 +262,7 @@ export default function BoletasPage() {
     if (!q.trim()) { setClientes([]); return }
     try {
       const res = await clientesApi.buscar(q)
-      setClientes(res.data.data?.clientes ?? [])
+      setClientes(res.data.data ?? [])
     } catch { setClientes([]) }
   }
 
@@ -273,6 +295,31 @@ export default function BoletasPage() {
     } catch (err) {
       toast.error(err.response?.data?.message ?? 'Error al crear boleta')
     } finally { setEnviando(false) }
+  }
+
+  async function onCrearCliente(datos) {
+    const payload = Object.fromEntries(
+      Object.entries(datos).map(([k, v]) => [k, v === '' ? null : v])
+    )
+    setEnviando(true)
+    try {
+      const res = await clientesApi.crear(payload)
+      const nuevoCli = res.data.data
+      toast.success('Cliente creado y seleccionado')
+      
+      // Establecer en el form de la boleta
+      formCrear.setValue('clienteId', nuevoCli.id)
+      setBusqCliente(nuevoCli.nombreCompleto)
+      setClientes([])
+      
+      // Cerrar y resetear
+      setModalNuevoCliente(false)
+      formNuevoCliente.reset()
+    } catch (err) {
+      toast.error(err.response?.data?.message ?? 'Error al crear cliente')
+    } finally {
+      setEnviando(false)
+    }
   }
 
   // ─── Cambiar estado ────────────────────────────────────────────────────────
@@ -346,8 +393,68 @@ export default function BoletasPage() {
     }
   }
 
+  const [enviandoEmail, setEnviandoEmail] = useState(false)
+
+  const enviarWhatsApp = (tipo = 'AUTO') => {
+    if (!detalle?.cliente?.telefono) {
+      toast.warning('El cliente no tiene teléfono registrado')
+      return
+    }
+    let tel = detalle.cliente.telefono.replace(/\D/g, '')
+    if (tel.length === 8) {
+      tel = '506' + tel
+    }
+
+    let tipoMensaje = tipo
+    if (tipo === 'AUTO') {
+      if (detalle.estadoBoleta === 'ESPERA_APROBACION') {
+        tipoMensaje = 'DESCUBRIMIENTO'
+      } else if (detalle.estadoBoleta === 'LISTO_ENTREGA') {
+        tipoMensaje = 'LISTO'
+      } else if (detalle.estadoBoleta === 'ENTREGADO') {
+        tipoMensaje = 'ENTREGADO'
+      } else if (detalle.estadoBoleta === 'RECHAZADO_DEVOLUCION') {
+        tipoMensaje = 'RECHAZADO_DEVOLUCION'
+      } else {
+        tipoMensaje = 'RECEPCION'
+      }
+    }
+
+    let msg = ''
+    if (tipoMensaje === 'DESCUBRIMIENTO') {
+      msg = `Hola *${detalle.cliente.nombreCompleto}*, le saludamos de *OmniHub T&K* 🛠️.\n\nLe informamos que hemos concluido el diagnóstico de su equipo *${detalle.tipoEquipo} ${detalle.marca} ${detalle.modelo || ''}* (boleta *#${detalle.numeroBoleta}*):\n\n🔍 *Daño encontrado:* ${detalle.diagnosticoTecnico || 'Pendiente de especificar'}\n🛠️ *Solución propuesta:* ${detalle.solucionPropuesta || 'Pendiente de especificar'}\n💰 *Costo estimado:* ${formatCurrency(detalle.total)}\n\nPuede autorizar o rechazar la reparación ingresando al siguiente enlace: ${window.location.origin}/consulta-boleta?num=${detalle.numeroBoleta}\n\nQuedamos atentos a su confirmación para proceder con el trabajo. Muchas gracias.`
+    } else if (tipoMensaje === 'LISTO') {
+      msg = `Hola *${detalle.cliente.nombreCompleto}*, le saludamos de *OmniHub T&K* 🛠️.\n\nLe informamos que su equipo *${detalle.tipoEquipo} ${detalle.marca} ${detalle.modelo || ''}* (boleta *#${detalle.numeroBoleta}*) ya está *listo para retirar* en nuestra tienda.\n\n💵 *Saldo pendiente:* ${formatCurrency(detalle.saldo)}\n\nPuede consultar los detalles ingresando aquí: ${window.location.origin}/consulta-boleta?num=${detalle.numeroBoleta}\n\n¡Le esperamos!`
+    } else if (tipoMensaje === 'ENTREGADO') {
+      msg = `Hola *${detalle.cliente.nombreCompleto}*, le saludamos de *OmniHub T&K* 🛠️.\n\nSu equipo *${detalle.tipoEquipo} ${detalle.marca} ${detalle.modelo || ''}* (boleta *#${detalle.numeroBoleta}*) ha sido debidamente entregado.\n\nMuchas gracias por su confianza. ¡Que tenga un excelente día!`
+    } else if (tipoMensaje === 'RECHAZADO_DEVOLUCION') {
+      msg = `Hola *${detalle.cliente.nombreCompleto}*, le saludamos de *OmniHub T&K* 🛠️.\n\nEl presupuesto para la boleta *#${detalle.numeroBoleta}* fue rechazado. Puede pasar a retirar su equipo *${detalle.tipoEquipo} ${detalle.marca} ${detalle.modelo || ''}* en nuestra tienda (aplica cobro de revisión básica).\n\n¡Le esperamos!`
+    } else {
+      msg = `Hola *${detalle.cliente.nombreCompleto}*, le saludamos de *OmniHub T&K* 🛠️.\n\nLe informamos que hemos recibido su equipo *${detalle.tipoEquipo} ${detalle.marca} ${detalle.modelo || ''}* para revisión con la boleta *#${detalle.numeroBoleta}*.\n\nPuede consultar el estado de su reparación aquí: ${window.location.origin}/consulta-boleta?num=${detalle.numeroBoleta}\n\nMuchas gracias por su confianza.`
+    }
+
+    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`, '_blank')
+  }
+
+  const enviarCorreo = async () => {
+    if (!detalle?.cliente?.correo) {
+      toast.warning('El cliente no tiene correo registrado')
+      return
+    }
+    setEnviandoEmail(true)
+    try {
+      await boletasApi.enviarCorreo(detalle.id)
+      toast.success('Correo de comprobante enviado correctamente')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error al enviar correo')
+    } finally {
+      setEnviandoEmail(false)
+    }
+  }
+
   const transicionesDisponibles = TRANSICIONES[detalle?.estadoBoleta] ?? []
   const puedeModificarTecnico   = esAdmin || esTecnico
+
   const puedeRegistrarPago      = esAdmin || esVendedor
 
   // ─── UI ───────────────────────────────────────────────────────────────────
@@ -473,12 +580,14 @@ export default function BoletasPage() {
                   <Button size="sm" variant="outline" onClick={() => {
                     formPresupuesto.setValue('manoObra', Number(detalle.manoObra))
                     formPresupuesto.setValue('observacionesInternas', detalle.observacionesInternas ?? '')
+                    formPresupuesto.setValue('diagnosticoTecnico', detalle.diagnosticoTecnico ?? '')
+                    formPresupuesto.setValue('solucionPropuesta', detalle.solucionPropuesta ?? '')
                     setModalPresupuesto(true)
                   }}>
                     <FileText size={13} className="mr-1" /> Presupuesto
                   </Button>
                 )}
-                {puedeModificarTecnico && detalle.estadoBoleta === 'EN_REPARACION' && (
+                {puedeModificarTecnico && ['EN_REVISION', 'DIAGNOSTICADO', 'ESPERA_APROBACION', 'EN_REPARACION'].includes(detalle.estadoBoleta) && (
                   <Button size="sm" variant="outline" onClick={() => setModalRepuesto(true)}>
                     <Package size={13} className="mr-1" /> Asignar repuesto
                   </Button>
@@ -489,7 +598,47 @@ export default function BoletasPage() {
                   </Button>
                 )}
               </div>
+
+              {/* Comunicación con el Cliente */}
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
+                {detalle.cliente?.telefono && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800"
+                    onClick={() => enviarWhatsApp('AUTO')}
+                  >
+                    <MessageSquare size={13} className="mr-1" />
+                    {detalle.estadoBoleta === 'ESPERA_APROBACION'
+                      ? 'Enviar Descubrimiento (WA)'
+                      : detalle.estadoBoleta === 'LISTO_ENTREGA'
+                      ? 'Notificar Listo (WA)'
+                      : detalle.estadoBoleta === 'ENTREGADO'
+                      ? 'Notificar Entrega (WA)'
+                      : 'Enviar Recepción (WA)'}
+                  </Button>
+                )}
+                {detalle.cliente?.correo && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:text-blue-800"
+                    onClick={enviarCorreo}
+                    disabled={enviandoEmail}
+                  >
+                    <Mail size={13} className="mr-1" />
+                    {enviandoEmail
+                      ? 'Enviando...'
+                      : detalle.estadoBoleta === 'ESPERA_APROBACION'
+                      ? 'Enviar Descubrimiento (Correo)'
+                      : detalle.estadoBoleta === 'LISTO_ENTREGA'
+                      ? 'Notificar Listo (Correo)'
+                      : 'Enviar Comprobante (Correo)'}
+                  </Button>
+                )}
+              </div>
             </div>
+
 
             {/* ── Grid info + financiero ───────────────────────────────────── */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -506,6 +655,18 @@ export default function BoletasPage() {
                 {detalle.accesoriosRecibidos && <InfoRow label="Accesorios" value={detalle.accesoriosRecibidos} multiline />}
                 {detalle.fechaEstimada && <InfoRow label="Fecha estimada" value={formatDate(detalle.fechaEstimada)} />}
                 {detalle.tecnico && <InfoRow label="Técnico" value={`${detalle.tecnico.nombre} ${detalle.tecnico.apellido}`} />}
+                {detalle.diagnosticoTecnico && (
+                  <div className="bg-slate-50 border rounded-lg p-2.5 mt-2 space-y-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Diagnóstico Técnico</p>
+                    <p className="text-sm text-slate-750 whitespace-pre-wrap">{detalle.diagnosticoTecnico}</p>
+                  </div>
+                )}
+                {detalle.solucionPropuesta && (
+                  <div className="bg-slate-50 border rounded-lg p-2.5 mt-2 space-y-1">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Solución Propuesta</p>
+                    <p className="text-sm text-slate-750 whitespace-pre-wrap">{detalle.solucionPropuesta}</p>
+                  </div>
+                )}
                 {detalle.observacionesInternas && (
                   <InfoRow label="Obs. internas" value={detalle.observacionesInternas} multiline />
                 )}
@@ -635,27 +796,48 @@ export default function BoletasPage() {
 
             {/* Buscar cliente */}
             <Campo label="Cliente" required error={formCrear.formState.errors.clienteId?.message}>
-              <Input
-                placeholder="Buscar cliente…"
-                value={busqCliente}
-                onChange={e => buscarClientes(e.target.value)}
-              />
-              {clientes.length > 0 && (
-                <div className="border rounded-lg divide-y mt-1 max-h-36 overflow-y-auto">
-                  {clientes.map(c => (
-                    <button type="button" key={c.id}
-                      onClick={() => {
-                        formCrear.setValue('clienteId', c.id)
-                        setBusqCliente(c.nombreCompleto)
-                        setClientes([])
-                      }}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
-                    >
-                      {c.nombreCompleto} · {c.telefono ?? c.cedula ?? '—'}
-                    </button>
-                  ))}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    placeholder="Buscar cliente…"
+                    value={busqCliente}
+                    onChange={e => buscarClientes(e.target.value)}
+                  />
+                  {clientes.length > 0 && (
+                    <div className="absolute z-50 w-full bg-white border rounded-lg shadow-lg divide-y mt-1 max-h-36 overflow-y-auto">
+                      {clientes.map(c => (
+                        <button type="button" key={c.id}
+                          onClick={() => {
+                            formCrear.setValue('clienteId', c.id)
+                            setBusqCliente(c.nombreCompleto)
+                            setClientes([])
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                        >
+                          {c.nombreCompleto} · {c.telefono ?? c.cedula ?? '—'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    formNuevoCliente.reset({
+                      nombreCompleto: busqCliente,
+                      telefono: '',
+                      correo: '',
+                      cedula: '',
+                      direccion: '',
+                    })
+                    setModalNuevoCliente(true)
+                  }}
+                  className="shrink-0"
+                >
+                  <Plus size={15} className="mr-1" /> Nuevo
+                </Button>
+              </div>
             </Campo>
 
             <div className="grid grid-cols-2 gap-3">
@@ -842,11 +1024,17 @@ export default function BoletasPage() {
       {/* MODAL — Presupuesto                                                 */}
       {/* ════════════════════════════════════════════════════════════════════ */}
       <Dialog open={modalPresupuesto} onOpenChange={setModalPresupuesto}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Actualizar presupuesto</DialogTitle>
           </DialogHeader>
           <form onSubmit={formPresupuesto.handleSubmit(onPresupuesto)} className="space-y-4 pt-1">
+            <Campo label="Diagnóstico Técnico" error={formPresupuesto.formState.errors.diagnosticoTecnico?.message}>
+              <Textarea rows={2} placeholder="Describa la falla técnica identificada..." {...formPresupuesto.register('diagnosticoTecnico')} />
+            </Campo>
+            <Campo label="Solución Propuesta" error={formPresupuesto.formState.errors.solucionPropuesta?.message}>
+              <Textarea rows={2} placeholder="Describa la solución y reparaciones propuestas..." {...formPresupuesto.register('solucionPropuesta')} />
+            </Campo>
             <Campo label="Mano de obra (₡)" error={formPresupuesto.formState.errors.manoObra?.message}>
               <Input type="number" min="0" step="500" {...formPresupuesto.register('manoObra')} />
             </Campo>
@@ -860,8 +1048,8 @@ export default function BoletasPage() {
                 <span>{formatCurrency((Number(formPresupuesto.watch('manoObra')) || 0) + Number(detalle?.subtotalRepuestos ?? 0))}</span>
               </div>
             </div>
-            <Campo label="Observaciones internas">
-              <Textarea rows={2} {...formPresupuesto.register('observacionesInternas')} />
+            <Campo label="Observaciones internas (no visible al cliente)">
+              <Textarea rows={2} placeholder="Notas internas para el taller..." {...formPresupuesto.register('observacionesInternas')} />
             </Campo>
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => setModalPresupuesto(false)}>Cancelar</Button>
@@ -951,6 +1139,42 @@ export default function BoletasPage() {
             <DialogFooter>
               <Button variant="outline" type="button" onClick={() => { setModalRepuesto(false); formRepuesto.reset(); setBusqProd(''); setProductos([]) }}>Cancelar</Button>
               <Button type="submit" disabled={enviando}>{enviando ? 'Asignando…' : 'Asignar'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      {/* MODAL — Crear cliente rápido                                        */}
+      {/* ════════════════════════════════════════════════════════════════════ */}
+      <Dialog open={modalNuevoCliente} onOpenChange={setModalNuevoCliente}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Registrar cliente</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={formNuevoCliente.handleSubmit(onCrearCliente)} className="space-y-4 pt-1">
+            <Campo label="Nombre completo" required error={formNuevoCliente.formState.errors.nombreCompleto?.message}>
+              <Input placeholder="Nombre y Apellidos" {...formNuevoCliente.register('nombreCompleto')} />
+            </Campo>
+            <div className="grid grid-cols-2 gap-3">
+              <Campo label="Teléfono" error={formNuevoCliente.formState.errors.telefono?.message}>
+                <Input placeholder="8888-8888" {...formNuevoCliente.register('telefono')} />
+              </Campo>
+              <Campo label="Cédula" error={formNuevoCliente.formState.errors.cedula?.message}>
+                <Input placeholder="ID / Identificación" {...formNuevoCliente.register('cedula')} />
+              </Campo>
+            </div>
+            <Campo label="Correo electrónico" error={formNuevoCliente.formState.errors.correo?.message}>
+              <Input type="email" placeholder="ejemplo@correo.com" {...formNuevoCliente.register('correo')} />
+            </Campo>
+            <Campo label="Dirección" error={formNuevoCliente.formState.errors.direccion?.message}>
+              <Input placeholder="Dirección corta" {...formNuevoCliente.register('direccion')} />
+            </Campo>
+            <DialogFooter>
+              <Button variant="outline" type="button" onClick={() => setModalNuevoCliente(false)}>Cancelar</Button>
+              <Button type="submit" disabled={enviando}>
+                {enviando ? 'Guardando…' : 'Crear y seleccionar'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
